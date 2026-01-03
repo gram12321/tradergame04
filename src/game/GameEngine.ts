@@ -29,7 +29,7 @@ export class GameEngine {
     // Process all facilities for all companies at the current tick
     this.companies.forEach(company => {
       company.facilities.forEach(facility => {
-        facility.processTick();
+        facility.processTick(this.market);
       });
     });
     

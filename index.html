@@ -606,15 +606,29 @@
                 // Get recipe name
                 const recipeName = facility.recipe ? facility.recipe.name : 'No recipe';
                 
-                // Get inventory with emojis
+                // Get inventory with emojis and market listing info
                 const inventoryItems = Array.from(facility.inventory.entries())
                     .filter(([_, amount]) => amount > 0)
                     .map(([resource, amount]) => {
                         const resourceDef = ResourceRegistry.get(resource);
                         const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        
+                        // Check if any of this resource is listed on market
+                        const listed = facility.getListedAmount(resource);
+                        
+                        if (listed > 0) {
+                            // Get listing details
+                            const listings = facility.marketListings.get(resource) || [];
+                            const listingDetails = listings.map(l => 
+                                `$${l.pricePerUnit.toFixed(2)}/unit`
+                            ).join(', ');
+                            
+                            return `${icon}${resource}: ${amount} total (${listed} listed @ ${listingDetails})`;
+                        }
+                        
                         return `${icon}${resource}: ${amount}`;
                     })
-                    .join(', ');
+                    .join('<br>          ');
                 const inventoryStr = inventoryItems || 'empty';
                 
                 html += `

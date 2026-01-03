@@ -50,6 +50,25 @@ export class Market {
   }
 
   /**
+   * Update a listing's amount (e.g., when listed resources are consumed internally)
+   */
+  updateListingAmount(listingId: string, newAmount: number): boolean {
+    const listing = this.listings.get(listingId);
+    if (!listing) {
+      return false;
+    }
+
+    if (newAmount <= 0) {
+      // Remove listing if amount reaches 0
+      return this.removeListing(listingId);
+    }
+
+    listing.amount = newAmount;
+    listing.totalPrice = newAmount * listing.pricePerUnit;
+    return true;
+  }
+
+  /**
    * Get a specific listing
    */
   getListing(listingId: string): MarketListing | undefined {

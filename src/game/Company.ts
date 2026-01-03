@@ -60,19 +60,19 @@ export class Company {
   /**
    * Transfer resources between two facilities
    */
-  transferResource(fromFacility: Facility, toFacility: Facility, resource: string, amount: number): boolean {
+  transferResource(fromFacility: Facility, toFacility: Facility, resource: string, amount: number, market?: Market): boolean {
     // Verify both facilities belong to this company
     if (fromFacility.ownerId !== this.id || toFacility.ownerId !== this.id) {
       return false;
     }
 
-    // Check if source has enough resources
+    // Check if source has enough resources (using total inventory)
     if (fromFacility.getResource(resource) < amount) {
       return false;
     }
 
-    // Perform transfer
-    if (fromFacility.removeResource(resource, amount)) {
+    // Perform transfer (market parameter allows automatic listing reduction if needed)
+    if (fromFacility.removeResource(resource, amount, market)) {
       toFacility.addResource(resource, amount);
       return true;
     }
@@ -102,13 +102,9 @@ export class Company {
       return null;
     }
 
-    // Check if facility has enough resources
-    if (facility.getResource(resource) < amount) {
-      return null;
-    }
-
-    // Remove resources from facility inventory
-    if (!facility.removeResource(resource, amount)) {
+    // Check if facility has enough total resources to list
+    // (We use available to prevent double-listing the same resources)
+    if (facility.getAvailableAmount(resource) < amount) {
       return null;
     }
 
@@ -122,11 +118,18 @@ export class Company {
       pricePerUnit
     );
 
+    // Add market listing in facility inventory
+    if (!facility.addMarketListing(resource, amount, listing.id, pricePerUnit)) {
+      // If reservation fails, remove the listing from market
+      market.removeListing(listing.id);
+      return null;
+    }
+
     return listing;
   }
 
   /**
-   * Cancel a market listing and return resources to facility
+   * Cancel a market listing and remove it from facility
    */
   cancelMarketListing(
     market: Market,
@@ -145,8 +148,8 @@ export class Company {
       return false;
     }
 
-    // Return resources to facility
-    facility.addResource(listing.resource, listing.amount);
+    // Remove listing from facility
+    facility.removeMarketListing(listing.resource, listingId);
 
     // Remove listing from market
     return market.removeListing(listingId);
@@ -180,6 +183,17 @@ export class Company {
 
     // Check if buyer has enough balance
     if (this.balance < listing.totalPrice) {
+      return false;
+    }
+
+    // Find seller's facility
+    const sellerFacility = seller.facilities.find(f => f.id === listing.facilityId);
+    if (!sellerFacility) {
+      return false;
+    }
+
+    // Remove resources from seller's facility (this also removes the listing)
+    if (!sellerFacility.soldFromMarket(listing.resource, listingId, market)) {
       return false;
     }
 
