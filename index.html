@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trader Game 04</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #4ec9b0;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-row {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background-color: #0e639c;
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #1177bb;
+        }
+
+        button:active {
+            background-color: #0d5689;
+        }
+
+        button.secondary {
+            background-color: #3e3e42;
+        }
+
+        button.secondary:hover {
+            background-color: #4e4e52;
+        }
+
+        .output {
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 400px;
+            overflow-y: auto;
+            max-height: 600px;
+        }
+
+        .facilities-info {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+
+        .market-display {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+
+        .company-panel {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .company-header {
+            color: #4ec9b0;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .balance {
+            color: #ce9178;
+            font-size: 16px;
+        }
+
+        .facility-list {
+            margin-top: 10px;
+        }
+
+        .facility-item {
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+
+        .facility-name {
+            color: #9cdcfe;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .facility-status {
+            color: #d4d4d4;
+            font-size: 12px;
+            margin-bottom: 3px;
+        }
+
+        .facility-inventory {
+            color: #ce9178;
+            font-size: 12px;
+        }
+
+        label {
+            color: #9cdcfe;
+            margin-right: 10px;
+        }
+
+        select, input {
+            background-color: #3c3c3c;
+            color: #d4d4d4;
+            border: 1px solid #3e3e42;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-family: inherit;
+        }
+
+        .section-title {
+            color: #4ec9b0;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .message-log {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+
+        .message {
+            padding: 5px 0;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .message:last-child {
+            border-bottom: none;
+        }
+
+        .message.success {
+            color: #4ec9b0;
+        }
+
+        .message.error {
+            color: #f48771;
+        }
+
+        .message.info {
+            color: #9cdcfe;
+        }
+
+        .action-form {
+            display: none;
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+        }
+
+        .action-form.active {
+            display: block;
+        }
+
+        .form-row {
+            margin-bottom: 10px;
+        }
+
+        .form-row label {
+            display: inline-block;
+            width: 120px;
+        }
+
+        .form-row input,
+        .form-row select {
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Trader Game 04</h1>
+        
+        <div class="facilities-info" id="facilitiesInfo"></div>
+        
+        <div class="message-log" id="messageLog">
+            <div class="message info">Game initialized. Ready to play!</div>
+        </div>
+        
+        <div class="controls">
+            <div class="section-title">Game Controls</div>
+            <div class="control-row">
+                <button onclick="processTick()">⏭️ Process Tick</button>
+                <button onclick="autoTick()" id="autoTickBtn">▶️ Auto Tick (1s)</button>
+                <button onclick="resetGame()" class="secondary">🔄 Reset Game</button>
+            </div>
+        </div>
+
+        <div class="company-panel">
+            <div class="company-header">
+                <span>👩‍💼 Alice Corp</span>
+                <span class="balance" id="aliceBalance">$10,000.00</span>
+            </div>
+            <div class="facility-list" id="aliceFacilities"></div>
+        </div>
+
+        <div class="controls">
+            <div class="section-title">Alice Corp Actions</div>
+            <div class="control-row">
+                <label>Facility Type:</label>
+                <select id="aliceFacilityType">
+                    <option value="farm">Farm ($1000)</option>
+                    <option value="mill">Mill ($1500)</option>
+                    <option value="bakery">Bakery ($2000)</option>
+                    <option value="warehouse">Warehouse ($500)</option>
+                </select>
+                <button onclick="createFacility('alice')">Build Facility</button>
+            </div>
+            <div class="control-row">
+                <button onclick="toggleForm('aliceTransfer')">Transfer Resources</button>
+                <button onclick="toggleForm('aliceMarket')">List on Market</button>
+                <button onclick="toggleForm('aliceBuy')">Buy from Market</button>
+            </div>
+            
+            <div id="aliceTransfer" class="action-form">
+                <div class="form-row">
+                    <label>From Facility:</label>
+                    <select id="aliceTransferFrom"></select>
+                </div>
+                <div class="form-row">
+                    <label>To Facility:</label>
+                    <select id="aliceTransferTo"></select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="aliceTransferResource"></select>
+                </div>
+                <div class="form-row">
+                    <label>Amount:</label>
+                    <input type="number" id="aliceTransferAmount" min="1" value="1">
+                </div>
+                <button onclick="executeTransfer('alice')">Execute Transfer</button>
+                <button onclick="toggleForm('aliceTransfer')" class="secondary">Cancel</button>
+            </div>
+            
+            <div id="aliceMarket" class="action-form">
+                <div class="form-row">
+                    <label>From Facility:</label>
+                    <select id="aliceMarketFacility"></select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="aliceMarketResource"></select>
+                </div>
+                <div class="form-row">
+                    <label>Amount:</label>
+                    <input type="number" id="aliceMarketAmount" min="1" value="1">
+                </div>
+                <div class="form-row">
+                    <label>Price per Unit:</label>
+                    <input type="number" id="aliceMarketPrice" min="0.01" step="0.01" value="1.00">
+                </div>
+                <button onclick="executeListMarket('alice')">List on Market</button>
+                <button onclick="toggleForm('aliceMarket')" class="secondary">Cancel</button>
+            </div>
+            
+            <div id="aliceBuy" class="action-form">
+                <div class="form-row">
+                    <label>Market Listing:</label>
+                    <select id="aliceBuyListing"></select>
+                </div>
+                <div class="form-row">
+                    <label>To Facility:</label>
+                    <select id="aliceBuyFacility"></select>
+                </div>
+                <button onclick="executeBuy('alice')">Buy from Market</button>
+                <button onclick="toggleForm('aliceBuy')" class="secondary">Cancel</button>
+            </div>
+        </div>
+
+        <div class="company-panel">
+            <div class="company-header">
+                <span>🏭 Bob Industries</span>
+                <span class="balance" id="bobBalance">$10,000.00</span>
+            </div>
+            <div class="facility-list" id="bobFacilities"></div>
+        </div>
+
+        <div class="controls">
+            <div class="section-title">Bob Industries Actions</div>
+            <div class="control-row">
+                <label>Facility Type:</label>
+                <select id="bobFacilityType">
+                    <option value="farm">Farm ($1000)</option>
+                    <option value="mill">Mill ($1500)</option>
+                    <option value="bakery">Bakery ($2000)</option>
+                    <option value="warehouse">Warehouse ($500)</option>
+                </select>
+                <button onclick="createFacility('bob')">Build Facility</button>
+            </div>
+            <div class="control-row">
+                <button onclick="toggleForm('bobTransfer')">Transfer Resources</button>
+                <button onclick="toggleForm('bobMarket')">List on Market</button>
+                <button onclick="toggleForm('bobBuy')">Buy from Market</button>
+            </div>
+            
+            <div id="bobTransfer" class="action-form">
+                <div class="form-row">
+                    <label>From Facility:</label>
+                    <select id="bobTransferFrom"></select>
+                </div>
+                <div class="form-row">
+                    <label>To Facility:</label>
+                    <select id="bobTransferTo"></select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="bobTransferResource"></select>
+                </div>
+                <div class="form-row">
+                    <label>Amount:</label>
+                    <input type="number" id="bobTransferAmount" min="1" value="1">
+                </div>
+                <button onclick="executeTransfer('bob')">Execute Transfer</button>
+                <button onclick="toggleForm('bobTransfer')" class="secondary">Cancel</button>
+            </div>
+            
+            <div id="bobMarket" class="action-form">
+                <div class="form-row">
+                    <label>From Facility:</label>
+                    <select id="bobMarketFacility"></select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="bobMarketResource"></select>
+                </div>
+                <div class="form-row">
+                    <label>Amount:</label>
+                    <input type="number" id="bobMarketAmount" min="1" value="1">
+                </div>
+                <div class="form-row">
+                    <label>Price per Unit:</label>
+                    <input type="number" id="bobMarketPrice" min="0.01" step="0.01" value="1.00">
+                </div>
+                <button onclick="executeListMarket('bob')">List on Market</button>
+                <button onclick="toggleForm('bobMarket')" class="secondary">Cancel</button>
+            </div>
+            
+            <div id="bobBuy" class="action-form">
+                <div class="form-row">
+                    <label>Market Listing:</label>
+                    <select id="bobBuyListing"></select>
+                </div>
+                <div class="form-row">
+                    <label>To Facility:</label>
+                    <select id="bobBuyFacility"></select>
+                </div>
+                <button onclick="executeBuy('bob')">Buy from Market</button>
+                <button onclick="toggleForm('bobBuy')" class="secondary">Cancel</button>
+            </div>
+        </div>
+
+        <div class="market-display" id="marketDisplay"></div>
+
+        <div class="output" id="output">Tick 0</div>
+    </div>
+
+    <script type="module">
+        import { GameEngine } from './dist/game/GameEngine.js';
+        import { FacilityRegistry } from './dist/game/FacilityRegistry.js';
+        import { ResourceRegistry } from './dist/game/ResourceRegistry.js';
+
+        // Initialize game
+        let game = new GameEngine();
+        let alice = game.addCompany('alice', 'Alice Corp');
+        let bob = game.addCompany('bob', 'Bob Industries');
+        let autoTickInterval = null;
+
+        // Make functions globally available
+        window.game = game;
+        window.alice = alice;
+        window.bob = bob;
+
+        function addMessage(text, type = 'info') {
+            const log = document.getElementById('messageLog');
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.textContent = text;
+            log.appendChild(message);
+            log.scrollTop = log.scrollHeight;
+            
+            // Keep only last 20 messages
+            while (log.children.length > 20) {
+                log.removeChild(log.firstChild);
+            }
+        }
+
+        window.toggleForm = function(formId) {
+            const form = document.getElementById(formId);
+            const isActive = form.classList.contains('active');
+            
+            // Close all forms
+            document.querySelectorAll('.action-form').forEach(f => f.classList.remove('active'));
+            
+            // Toggle this form
+            if (!isActive) {
+                form.classList.add('active');
+                updateFormOptions(formId);
+            }
+        };
+
+        function updateFormOptions(formId) {
+            const company = formId.startsWith('alice') ? alice : bob;
+            const companyId = formId.startsWith('alice') ? 'alice' : 'bob';
+            
+            // Update facility dropdowns
+            if (formId.includes('Transfer')) {
+                updateFacilityDropdowns(`${companyId}TransferFrom`, company);
+                updateFacilityDropdowns(`${companyId}TransferTo`, company);
+                updateResourceDropdowns(`${companyId}TransferResource`);
+            } else if (formId.includes('Market')) {
+                updateFacilityDropdowns(`${companyId}MarketFacility`, company);
+                updateResourceDropdowns(`${companyId}MarketResource`);
+            } else if (formId.includes('Buy')) {
+                updateFacilityDropdowns(`${companyId}BuyFacility`, company);
+                updateMarketListings(`${companyId}BuyListing`);
+            }
+        }
+
+        function updateResourceDropdowns(selectId) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+            
+            const resources = ResourceRegistry.getAll();
+            resources.forEach(resource => {
+                const option = document.createElement('option');
+                option.value = resource.id;
+                option.textContent = `${resource.icon} ${resource.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateFacilityDropdowns(selectId, company) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+            
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+            
+            company.facilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `Facility ${index + 1} (${facility.type})`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateMarketListings(selectId) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+            
+            const listings = game.getMarket().getAllListings();
+            
+            if (listings.length === 0) {
+                select.innerHTML = '<option value="">No listings</option>';
+                return;
+            }
+            
+            listings.forEach((listing, index) => {
+                const option = document.createElement('option');
+                option.value = listing.id;
+                const resourceDef = ResourceRegistry.get(listing.resource);
+                const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                option.textContent = `${listing.amount} ${icon}${listing.resource} @ $${listing.pricePerUnit}/unit = $${listing.totalPrice} (${listing.sellerName})`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateDisplay() {
+            // Update tick counter
+            const output = document.getElementById('output');
+            output.textContent = `Tick ${game.getTickCount()}`;
+            
+            // Update market display with emojis
+            const marketDisplay = document.getElementById('marketDisplay');
+            const market = game.getMarket();
+            const listings = market.getAllListings();
+            
+            if (listings.length === 0) {
+                marketDisplay.textContent = '\n=== Market ===\nNo items listed on the market.';
+            } else {
+                let marketHtml = '=== Market ===\n';
+                
+                // Group by resource
+                const byResource = new Map();
+                listings.forEach(listing => {
+                    if (!byResource.has(listing.resource)) {
+                        byResource.set(listing.resource, []);
+                    }
+                    byResource.get(listing.resource).push(listing);
+                });
+                
+                // Display grouped listings with emojis
+                byResource.forEach((resourceListings, resource) => {
+                    const resourceDef = ResourceRegistry.get(resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    marketHtml += `\n${icon}${resource}:\n`;
+                    
+                    resourceListings
+                        .sort((a, b) => a.pricePerUnit - b.pricePerUnit)
+                        .forEach(listing => {
+                            marketHtml += `  [${listing.id}] ${listing.amount} units @ $${listing.pricePerUnit.toFixed(2)}/unit = $${listing.totalPrice.toFixed(2)} (Seller: ${listing.sellerName})\n`;
+                        });
+                });
+                
+                marketDisplay.textContent = marketHtml;
+            }
+            
+            // Update Alice's info
+            updateCompanyDisplay(alice, 'alice');
+            
+            // Update Bob's info
+            updateCompanyDisplay(bob, 'bob');
+        }
+
+        function updateCompanyDisplay(company, companyId) {
+            // Update balance
+            document.getElementById(`${companyId}Balance`).textContent = 
+                `$${company.balance.toFixed(2)}`;
+            
+            // Update facilities
+            const facilitiesDiv = document.getElementById(`${companyId}Facilities`);
+            
+            if (company.facilities.length === 0) {
+                facilitiesDiv.innerHTML = '<div style="color: #666; font-style: italic;">No facilities</div>';
+                return;
+            }
+            
+            let html = '';
+            company.facilities.forEach((facility, index) => {
+                // Get facility status
+                const statusStr = facility.isProducing 
+                    ? `Producing (${facility.productionProgress}/${facility.recipe?.ticksRequired || 0})` 
+                    : 'Idle';
+                
+                // Get recipe name
+                const recipeName = facility.recipe ? facility.recipe.name : 'No recipe';
+                
+                // Get inventory with emojis
+                const inventoryItems = Array.from(facility.inventory.entries())
+                    .filter(([_, amount]) => amount > 0)
+                    .map(([resource, amount]) => {
+                        const resourceDef = ResourceRegistry.get(resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        return `${icon}${resource}: ${amount}`;
+                    })
+                    .join(', ');
+                const inventoryStr = inventoryItems || 'empty';
+                
+                html += `
+                    <div class="facility-item">
+                        <div class="facility-name">${facility.name}</div>
+                        <div class="facility-status" style="color: #666; font-size: 10px;">ID: ${facility.id}</div>
+                        <div class="facility-status">Recipe: ${recipeName}</div>
+                        <div class="facility-status">Status: ${statusStr}</div>
+                        <div class="facility-inventory">Inventory: ${inventoryStr}</div>
+                    </div>
+                `;
+            });
+            
+            facilitiesDiv.innerHTML = html;
+        }
+
+        window.processTick = function() {
+            game.processTick();
+            addMessage(`Tick ${game.getTickCount() - 1} processed`, 'info');
+            updateDisplay();
+        };
+
+        window.autoTick = function() {
+            const btn = document.getElementById('autoTickBtn');
+            if (autoTickInterval) {
+                clearInterval(autoTickInterval);
+                autoTickInterval = null;
+                btn.textContent = '▶️ Auto Tick (1s)';
+                addMessage('Auto tick stopped', 'info');
+            } else {
+                autoTickInterval = setInterval(() => {
+                    window.processTick();
+                }, 1000);
+                btn.textContent = '⏸️ Stop Auto Tick';
+                addMessage('Auto tick started', 'info');
+            }
+        };
+
+        window.resetGame = function() {
+            if (autoTickInterval) {
+                clearInterval(autoTickInterval);
+                autoTickInterval = null;
+                document.getElementById('autoTickBtn').textContent = '▶️ Auto Tick (1s)';
+            }
+            game = new GameEngine();
+            alice = game.addCompany('alice', 'Alice Corp');
+            bob = game.addCompany('bob', 'Bob Industries');
+            window.game = game;
+            window.alice = alice;
+            window.bob = bob;
+            document.getElementById('messageLog').innerHTML = '<div class="message info">Game reset. Ready to play!</div>';
+            updateDisplay();
+        };
+
+        window.createFacility = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            const selectId = companyId + 'FacilityType';
+            const facilityType = document.getElementById(selectId).value;
+            
+            const facility = company.createFacility(facilityType);
+            if (facility) {
+                addMessage(`✅ ${company.name} built a ${facilityType}!`, 'success');
+            } else {
+                addMessage(`❌ Failed to build ${facilityType}. Not enough funds?`, 'error');
+            }
+            updateDisplay();
+        };
+
+        window.executeTransfer = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            
+            if (company.facilities.length < 2) {
+                addMessage('Need at least 2 facilities to transfer resources!', 'error');
+                return;
+            }
+
+            const fromIndex = parseInt(document.getElementById(`${companyId}TransferFrom`).value);
+            const toIndex = parseInt(document.getElementById(`${companyId}TransferTo`).value);
+            const resource = document.getElementById(`${companyId}TransferResource`).value;
+            const amount = parseInt(document.getElementById(`${companyId}TransferAmount`).value);
+
+            const from = company.facilities[fromIndex];
+            const to = company.facilities[toIndex];
+            
+            if (from && to) {
+                const success = company.transferResource(from, to, resource, amount);
+                if (success) {
+                    const resourceDef = ResourceRegistry.get(resource);
+                    const icon = resourceDef ? resourceDef.icon : '';
+                    addMessage(`✅ Transferred ${amount} ${icon} ${resource} from Facility ${fromIndex + 1} to Facility ${toIndex + 1}`, 'success');
+                    toggleForm(`${companyId}Transfer`);
+                } else {
+                    addMessage(`❌ Transfer failed. Not enough resources?`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeListMarket = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            
+            if (company.facilities.length === 0) {
+                addMessage('Need at least 1 facility to list resources!', 'error');
+                return;
+            }
+
+            const facilityIndex = parseInt(document.getElementById(`${companyId}MarketFacility`).value);
+            const resource = document.getElementById(`${companyId}MarketResource`).value;
+            const amount = parseInt(document.getElementById(`${companyId}MarketAmount`).value);
+            const price = parseFloat(document.getElementById(`${companyId}MarketPrice`).value);
+
+            const facility = company.facilities[facilityIndex];
+            
+            if (facility) {
+                const listing = company.listResourceOnMarket(
+                    game.getMarket(),
+                    facility,
+                    resource,
+                    amount,
+                    price
+                );
+                
+                if (listing) {
+                    const resourceDef = ResourceRegistry.get(resource);
+                    const icon = resourceDef ? resourceDef.icon : '';
+                    addMessage(`✅ Listed ${amount} ${icon} ${resource} @ $${price.toFixed(2)}/unit`, 'success');
+                    toggleForm(`${companyId}Market`);
+                } else {
+                    addMessage(`❌ Listing failed. Not enough resources?`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeBuy = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            const otherCompany = companyId === 'alice' ? bob : alice;
+            
+            if (company.facilities.length === 0) {
+                addMessage('Need at least 1 facility to receive purchased resources!', 'error');
+                return;
+            }
+
+            const market = game.getMarket();
+            const listingId = document.getElementById(`${companyId}BuyListing`).value;
+            const facilityIndex = parseInt(document.getElementById(`${companyId}BuyFacility`).value);
+
+            const listing = market.getListing(listingId);
+            const facility = company.facilities[facilityIndex];
+            
+            if (listing && facility) {
+                const success = company.purchaseFromMarket(market, otherCompany, listing.id, facility);
+                
+                if (success) {
+                    const resourceDef = ResourceRegistry.get(listing.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    addMessage(`✅ Purchased ${listing.amount} ${icon}${listing.resource} for $${listing.totalPrice.toFixed(2)}`, 'success');
+                    toggleForm(`${companyId}Buy`);
+                } else {
+                    addMessage(`❌ Purchase failed. Not enough funds or can't buy from yourself?`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        // Initialize display
+        const facilitiesInfo = FacilityRegistry.displayFacilities() + '\n' + ResourceRegistry.displayResources();
+        document.getElementById('facilitiesInfo').textContent = facilitiesInfo;
+        updateDisplay();
+    </script>
+</body>
+</html>

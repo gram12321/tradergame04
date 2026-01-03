@@ -1,0 +1,22 @@
+{
+  "name": "tradergame04",
+  "version": "1.0.0",
+  "description": "Trading/Clicker Game - Core Game Logic",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/test.ts",
+    "build": "tsc",
+    "start": "node dist/test.js",
+    "test": "tsx src/test.ts",
+    "serve": "npx serve ."
+  },
+  "keywords": ["game", "trading", "clicker"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
