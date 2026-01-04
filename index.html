@@ -276,8 +276,10 @@
             </div>
             <div class="control-row">
                 <button onclick="toggleForm('aliceTransfer')">Transfer Resources</button>
-                <button onclick="toggleForm('aliceMarket')">List on Market</button>
-                <button onclick="toggleForm('aliceBuy')">Buy from Market</button>
+                <button onclick="toggleForm('aliceSellOffer')">Create Sell Offer</button>
+                <button onclick="toggleForm('aliceContract')">Create Buy Contract</button>
+                <button onclick="toggleForm('aliceEdit')">Edit Offer/Contract</button>
+                <button onclick="toggleForm('aliceCancel')">Cancel Offer/Contract</button>
             </div>
             
             <div id="aliceTransfer" class="action-form">
@@ -301,38 +303,99 @@
                 <button onclick="toggleForm('aliceTransfer')" class="secondary">Cancel</button>
             </div>
             
-            <div id="aliceMarket" class="action-form">
+            <div id="aliceSellOffer" class="action-form">
                 <div class="form-row">
                     <label>From Facility:</label>
-                    <select id="aliceMarketFacility"></select>
+                    <select id="aliceSellOfferFacility"></select>
                 </div>
                 <div class="form-row">
                     <label>Resource:</label>
-                    <select id="aliceMarketResource"></select>
+                    <select id="aliceSellOfferResource"></select>
                 </div>
                 <div class="form-row">
-                    <label>Amount:</label>
-                    <input type="number" id="aliceMarketAmount" min="1" value="1">
+                    <label>Amount/tick:</label>
+                    <input type="number" id="aliceSellOfferAmount" min="1" value="1">
                 </div>
                 <div class="form-row">
                     <label>Price per Unit:</label>
-                    <input type="number" id="aliceMarketPrice" min="0.01" step="0.01" value="1.00">
+                    <input type="number" id="aliceSellOfferPrice" min="0.01" step="0.01" value="1.00">
                 </div>
-                <button onclick="executeListMarket('alice')">List on Market</button>
-                <button onclick="toggleForm('aliceMarket')" class="secondary">Cancel</button>
+                <button onclick="executeCreateSellOffer('alice')">Create Sell Offer</button>
+                <button onclick="toggleForm('aliceSellOffer')" class="secondary">Cancel</button>
             </div>
             
-            <div id="aliceBuy" class="action-form">
+            <div id="aliceContract" class="action-form">
                 <div class="form-row">
-                    <label>Market Listing:</label>
-                    <select id="aliceBuyListing"></select>
+                    <label>Sell Offer:</label>
+                    <select id="aliceContractOffer"></select>
                 </div>
                 <div class="form-row">
                     <label>To Facility:</label>
-                    <select id="aliceBuyFacility"></select>
+                    <select id="aliceContractFacility"></select>
                 </div>
-                <button onclick="executeBuy('alice')">Buy from Market</button>
-                <button onclick="toggleForm('aliceBuy')" class="secondary">Cancel</button>
+                <div class="form-row">
+                    <label>Amount/tick:</label>
+                    <input type="number" id="aliceContractAmount" min="1" value="1">
+                </div>
+                <button onclick="executeCreateContract('alice')">Create Contract</button>
+                <button onclick="toggleForm('aliceContract')" class="secondary">Cancel</button>
+            </div>
+            
+            <div id="aliceEdit" class="action-form">
+                <div class="form-row">
+                    <label>Type:</label>
+                    <select id="aliceEditType" onchange="updateEditOptions('alice')">
+                        <option value="offer">My Sell Offer</option>
+                        <option value="contract-seller">My Contract (Selling)</option>
+                        <option value="contract-buyer">My Contract (Buying)</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Select:</label>
+                    <select id="aliceEditSelect" onchange="populateEditForm('alice')"></select>
+                </div>
+                <div id="aliceEditOfferForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Price/unit:</label>
+                        <input type="number" id="aliceEditOfferPrice" min="0.01" step="0.01" value="1.00">
+                    </div>
+                    <div class="form-row">
+                        <label>New Amount/tick:</label>
+                        <input type="number" id="aliceEditOfferAmount" min="1" value="1">
+                    </div>
+                    <button onclick="executeEditOffer('alice')">Update Offer</button>
+                </div>
+                <div id="aliceEditContractSellerForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Price/unit:</label>
+                        <input type="number" id="aliceEditContractSellerPrice" min="0.01" step="0.01" value="1.00">
+                    </div>
+                    <button onclick="executeEditContractSeller('alice')">Update Price</button>
+                </div>
+                <div id="aliceEditContractBuyerForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Amount/tick:</label>
+                        <input type="number" id="aliceEditContractBuyerAmount" min="1" value="1">
+                    </div>
+                    <button onclick="executeEditContractBuyer('alice')">Update Amount</button>
+                </div>
+                <button onclick="toggleForm('aliceEdit')" class="secondary">Close</button>
+            </div>
+            
+            <div id="aliceCancel" class="action-form">
+                <div class="form-row">
+                    <label>Type:</label>
+                    <select id="aliceCancelType" onchange="updateCancelOptions('alice')">
+                        <option value="offer">Sell Offer</option>
+                        <option value="contract">Contract</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Select:</label>
+                    <select id="aliceCancelSelect"></select>
+                </div>
+                <button onclick="executeCancel('alice')">Cancel</button>
+                <button onclick="toggleForm('aliceCancel')" class="secondary">Close</button>
             </div>
         </div>
 
@@ -358,8 +421,10 @@
             </div>
             <div class="control-row">
                 <button onclick="toggleForm('bobTransfer')">Transfer Resources</button>
-                <button onclick="toggleForm('bobMarket')">List on Market</button>
-                <button onclick="toggleForm('bobBuy')">Buy from Market</button>
+                <button onclick="toggleForm('bobSellOffer')">Create Sell Offer</button>
+                <button onclick="toggleForm('bobContract')">Create Buy Contract</button>
+                <button onclick="toggleForm('bobEdit')">Edit Offer/Contract</button>
+                <button onclick="toggleForm('bobCancel')">Cancel Offer/Contract</button>
             </div>
             
             <div id="bobTransfer" class="action-form">
@@ -383,38 +448,99 @@
                 <button onclick="toggleForm('bobTransfer')" class="secondary">Cancel</button>
             </div>
             
-            <div id="bobMarket" class="action-form">
+            <div id="bobSellOffer" class="action-form">
                 <div class="form-row">
                     <label>From Facility:</label>
-                    <select id="bobMarketFacility"></select>
+                    <select id="bobSellOfferFacility"></select>
                 </div>
                 <div class="form-row">
                     <label>Resource:</label>
-                    <select id="bobMarketResource"></select>
+                    <select id="bobSellOfferResource"></select>
                 </div>
                 <div class="form-row">
-                    <label>Amount:</label>
-                    <input type="number" id="bobMarketAmount" min="1" value="1">
+                    <label>Amount/tick:</label>
+                    <input type="number" id="bobSellOfferAmount" min="1" value="1">
                 </div>
                 <div class="form-row">
                     <label>Price per Unit:</label>
-                    <input type="number" id="bobMarketPrice" min="0.01" step="0.01" value="1.00">
+                    <input type="number" id="bobSellOfferPrice" min="0.01" step="0.01" value="1.00">
                 </div>
-                <button onclick="executeListMarket('bob')">List on Market</button>
-                <button onclick="toggleForm('bobMarket')" class="secondary">Cancel</button>
+                <button onclick="executeCreateSellOffer('bob')">Create Sell Offer</button>
+                <button onclick="toggleForm('bobSellOffer')" class="secondary">Cancel</button>
             </div>
             
-            <div id="bobBuy" class="action-form">
+            <div id="bobContract" class="action-form">
                 <div class="form-row">
-                    <label>Market Listing:</label>
-                    <select id="bobBuyListing"></select>
+                    <label>Sell Offer:</label>
+                    <select id="bobContractOffer"></select>
                 </div>
                 <div class="form-row">
                     <label>To Facility:</label>
-                    <select id="bobBuyFacility"></select>
+                    <select id="bobContractFacility"></select>
                 </div>
-                <button onclick="executeBuy('bob')">Buy from Market</button>
-                <button onclick="toggleForm('bobBuy')" class="secondary">Cancel</button>
+                <div class="form-row">
+                    <label>Amount/tick:</label>
+                    <input type="number" id="bobContractAmount" min="1" value="1">
+                </div>
+                <button onclick="executeCreateContract('bob')">Create Contract</button>
+                <button onclick="toggleForm('bobContract')" class="secondary">Cancel</button>
+            </div>
+            
+            <div id="bobEdit" class="action-form">
+                <div class="form-row">
+                    <label>Type:</label>
+                    <select id="bobEditType" onchange="updateEditOptions('bob')">
+                        <option value="offer">My Sell Offer</option>
+                        <option value="contract-seller">My Contract (Selling)</option>
+                        <option value="contract-buyer">My Contract (Buying)</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Select:</label>
+                    <select id="bobEditSelect" onchange="populateEditForm('bob')"></select>
+                </div>
+                <div id="bobEditOfferForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Price/unit:</label>
+                        <input type="number" id="bobEditOfferPrice" min="0.01" step="0.01" value="1.00">
+                    </div>
+                    <div class="form-row">
+                        <label>New Amount/tick:</label>
+                        <input type="number" id="bobEditOfferAmount" min="1" value="1">
+                    </div>
+                    <button onclick="executeEditOffer('bob')">Update Offer</button>
+                </div>
+                <div id="bobEditContractSellerForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Price/unit:</label>
+                        <input type="number" id="bobEditContractSellerPrice" min="0.01" step="0.01" value="1.00">
+                    </div>
+                    <button onclick="executeEditContractSeller('bob')">Update Price</button>
+                </div>
+                <div id="bobEditContractBuyerForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Amount/tick:</label>
+                        <input type="number" id="bobEditContractBuyerAmount" min="1" value="1">
+                    </div>
+                    <button onclick="executeEditContractBuyer('bob')">Update Amount</button>
+                </div>
+                <button onclick="toggleForm('bobEdit')" class="secondary">Close</button>
+            </div>
+            
+            <div id="bobCancel" class="action-form">
+                <div class="form-row">
+                    <label>Type:</label>
+                    <select id="bobCancelType" onchange="updateCancelOptions('bob')">
+                        <option value="offer">Sell Offer</option>
+                        <option value="contract">Contract</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Select:</label>
+                    <select id="bobCancelSelect"></select>
+                </div>
+                <button onclick="executeCancel('bob')">Cancel</button>
+                <button onclick="toggleForm('bobCancel')" class="secondary">Close</button>
             </div>
         </div>
 
@@ -476,12 +602,16 @@
                 updateFacilityDropdowns(`${companyId}TransferFrom`, company);
                 updateFacilityDropdowns(`${companyId}TransferTo`, company);
                 updateResourceDropdowns(`${companyId}TransferResource`);
-            } else if (formId.includes('Market')) {
-                updateFacilityDropdowns(`${companyId}MarketFacility`, company);
-                updateResourceDropdowns(`${companyId}MarketResource`);
-            } else if (formId.includes('Buy')) {
-                updateFacilityDropdowns(`${companyId}BuyFacility`, company);
-                updateMarketListings(`${companyId}BuyListing`);
+            } else if (formId.includes('SellOffer')) {
+                updateFacilityDropdowns(`${companyId}SellOfferFacility`, company);
+                updateResourceDropdowns(`${companyId}SellOfferResource`);
+            } else if (formId.includes('Contract')) {
+                updateFacilityDropdowns(`${companyId}ContractFacility`, company);
+                updateSellOffers(`${companyId}ContractOffer`);
+            } else if (formId.includes('Edit')) {
+                updateEditOptions(companyId);
+            } else if (formId.includes('Cancel')) {
+                updateCancelOptions(companyId);
             }
         }
 
@@ -515,66 +645,166 @@
             });
         }
 
-        function updateMarketListings(selectId) {
+        function updateSellOffers(selectId) {
             const select = document.getElementById(selectId);
             select.innerHTML = '';
             
-            const listings = game.getMarket().getAllListings();
+            const offers = game.getMarket().getAvailableSellOffers();
             
-            if (listings.length === 0) {
-                select.innerHTML = '<option value="">No listings</option>';
+            if (offers.length === 0) {
+                select.innerHTML = '<option value="">No sell offers</option>';
                 return;
             }
             
-            listings.forEach((listing, index) => {
+            offers.forEach(offer => {
                 const option = document.createElement('option');
-                option.value = listing.id;
-                const resourceDef = ResourceRegistry.get(listing.resource);
+                option.value = offer.id;
+                const resourceDef = ResourceRegistry.get(offer.resource);
                 const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                option.textContent = `${listing.amount} ${icon}${listing.resource} @ $${listing.pricePerUnit}/unit = $${listing.totalPrice} (${listing.sellerName})`;
+                option.textContent = `${icon}${offer.resource}: ${offer.amountInStock}/tick available (${offer.amountAvailable} listed) @ $${offer.pricePerUnit.toFixed(2)} (${offer.sellerName})`;
                 select.appendChild(option);
             });
         }
+        
+        window.updateCancelOptions = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            const type = document.getElementById(`${companyId}CancelType`).value;
+            const select = document.getElementById(`${companyId}CancelSelect`);
+            select.innerHTML = '';
+            
+            if (type === 'offer') {
+                const offers = game.getMarket().getAllSellOffers().filter(o => o.sellerId === company.id);
+                if (offers.length === 0) {
+                    select.innerHTML = '<option value="">No offers to cancel</option>';
+                    return;
+                }
+                offers.forEach(offer => {
+                    const option = document.createElement('option');
+                    option.value = offer.id;
+                    const resourceDef = ResourceRegistry.get(offer.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${offer.resource}: ${offer.amountInStock}/tick available @ $${offer.pricePerUnit.toFixed(2)}/unit`;
+                    select.appendChild(option);
+                });
+            } else {
+                const contracts = game.getMarket().getAllContracts().filter(c => 
+                    c.buyerId === company.id || c.sellerId === company.id
+                );
+                if (contracts.length === 0) {
+                    select.innerHTML = '<option value="">No contracts to cancel</option>';
+                    return;
+                }
+                contracts.forEach(contract => {
+                    const option = document.createElement('option');
+                    option.value = contract.id;
+                    const resourceDef = ResourceRegistry.get(contract.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    const role = contract.sellerId === company.id ? '(Selling)' : '(Buying)';
+                    const otherParty = contract.sellerId === company.id ? contract.buyerName : contract.sellerName;
+                    const status = contract.lastFailedTick !== null ? '[FAILED]' : '';
+                    option.textContent = `${icon}${contract.resource} ${contract.amountPerTick}/tick @ $${contract.pricePerUnit.toFixed(2)} ${role} with ${otherParty} ${status}`;
+                    select.appendChild(option);
+                });
+            }
+        };
+        
+        window.updateEditOptions = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            const type = document.getElementById(`${companyId}EditType`).value;
+            const select = document.getElementById(`${companyId}EditSelect`);
+            select.innerHTML = '';
+            
+            // Hide all forms
+            document.getElementById(`${companyId}EditOfferForm`).style.display = 'none';
+            document.getElementById(`${companyId}EditContractSellerForm`).style.display = 'none';
+            document.getElementById(`${companyId}EditContractBuyerForm`).style.display = 'none';
+            
+            if (type === 'offer') {
+                const offers = game.getMarket().getAllSellOffers().filter(o => o.sellerId === company.id);
+                if (offers.length === 0) {
+                    select.innerHTML = '<option value="">No offers to edit</option>';
+                    return;
+                }
+                offers.forEach(offer => {
+                    const option = document.createElement('option');
+                    option.value = offer.id;
+                    const resourceDef = ResourceRegistry.get(offer.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${offer.resource}: ${offer.amountAvailable}/tick @ $${offer.pricePerUnit.toFixed(2)}`;
+                    select.appendChild(option);
+                });
+            } else if (type === 'contract-seller') {
+                const contracts = game.getMarket().getAllContracts().filter(c => c.sellerId === company.id);
+                if (contracts.length === 0) {
+                    select.innerHTML = '<option value="">No selling contracts to edit</option>';
+                    return;
+                }
+                contracts.forEach(contract => {
+                    const option = document.createElement('option');
+                    option.value = contract.id;
+                    const resourceDef = ResourceRegistry.get(contract.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${contract.resource}: ${contract.amountPerTick}/tick @ $${contract.pricePerUnit.toFixed(2)} to ${contract.buyerName}`;
+                    select.appendChild(option);
+                });
+            } else if (type === 'contract-buyer') {
+                const contracts = game.getMarket().getAllContracts().filter(c => c.buyerId === company.id);
+                if (contracts.length === 0) {
+                    select.innerHTML = '<option value="">No buying contracts to edit</option>';
+                    return;
+                }
+                contracts.forEach(contract => {
+                    const option = document.createElement('option');
+                    option.value = contract.id;
+                    const resourceDef = ResourceRegistry.get(contract.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${contract.resource}: ${contract.amountPerTick}/tick @ $${contract.pricePerUnit.toFixed(2)} from ${contract.sellerName}`;
+                    select.appendChild(option);
+                });
+            }
+            
+            populateEditForm(companyId);
+        };
+        
+        window.populateEditForm = function(companyId) {
+            const type = document.getElementById(`${companyId}EditType`).value;
+            const id = document.getElementById(`${companyId}EditSelect`).value;
+            
+            if (!id) return;
+            
+            if (type === 'offer') {
+                const offer = game.getMarket().getSellOffer(id);
+                if (offer) {
+                    document.getElementById(`${companyId}EditOfferPrice`).value = offer.pricePerUnit;
+                    document.getElementById(`${companyId}EditOfferAmount`).value = offer.amountAvailable;
+                    document.getElementById(`${companyId}EditOfferForm`).style.display = 'block';
+                }
+            } else if (type === 'contract-seller') {
+                const contract = game.getMarket().getContract(id);
+                if (contract) {
+                    document.getElementById(`${companyId}EditContractSellerPrice`).value = contract.pricePerUnit;
+                    document.getElementById(`${companyId}EditContractSellerForm`).style.display = 'block';
+                }
+            } else if (type === 'contract-buyer') {
+                const contract = game.getMarket().getContract(id);
+                if (contract) {
+                    document.getElementById(`${companyId}EditContractBuyerAmount`).value = contract.amountPerTick;
+                    document.getElementById(`${companyId}EditContractBuyerForm`).style.display = 'block';
+                }
+            }
+        };
 
         function updateDisplay() {
             // Update tick counter
             const output = document.getElementById('output');
             output.textContent = `Tick ${game.getTickCount()}`;
             
-            // Update market display with emojis
+            // Update market display with sell offers and contracts
             const marketDisplay = document.getElementById('marketDisplay');
             const market = game.getMarket();
-            const listings = market.getAllListings();
             
-            if (listings.length === 0) {
-                marketDisplay.textContent = '\n=== Market ===\nNo items listed on the market.';
-            } else {
-                let marketHtml = '=== Market ===\n';
-                
-                // Group by resource
-                const byResource = new Map();
-                listings.forEach(listing => {
-                    if (!byResource.has(listing.resource)) {
-                        byResource.set(listing.resource, []);
-                    }
-                    byResource.get(listing.resource).push(listing);
-                });
-                
-                // Display grouped listings with emojis
-                byResource.forEach((resourceListings, resource) => {
-                    const resourceDef = ResourceRegistry.get(resource);
-                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                    marketHtml += `\n${icon}${resource}:\n`;
-                    
-                    resourceListings
-                        .sort((a, b) => a.pricePerUnit - b.pricePerUnit)
-                        .forEach(listing => {
-                            marketHtml += `  [${listing.id}] ${listing.amount} units @ $${listing.pricePerUnit.toFixed(2)}/unit = $${listing.totalPrice.toFixed(2)} (Seller: ${listing.sellerName})\n`;
-                        });
-                });
-                
-                marketDisplay.textContent = marketHtml;
-            }
+            let marketHtml = market.displayMarket();
+            marketDisplay.textContent = marketHtml;
             
             // Update Alice's info
             updateCompanyDisplay(alice, 'alice');
@@ -606,30 +836,131 @@
                 // Get recipe name
                 const recipeName = facility.recipe ? facility.recipe.name : 'No recipe';
                 
-                // Get inventory with emojis and market listing info
+                // Get inventory with emojis
                 const inventoryItems = Array.from(facility.inventory.entries())
                     .filter(([_, amount]) => amount > 0)
                     .map(([resource, amount]) => {
                         const resourceDef = ResourceRegistry.get(resource);
                         const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                        
-                        // Check if any of this resource is listed on market
-                        const listed = facility.getListedAmount(resource);
-                        
-                        if (listed > 0) {
-                            // Get listing details
-                            const listings = facility.marketListings.get(resource) || [];
-                            const listingDetails = listings.map(l => 
-                                `$${l.pricePerUnit.toFixed(2)}/unit`
-                            ).join(', ');
-                            
-                            return `${icon}${resource}: ${amount} total (${listed} listed @ ${listingDetails})`;
-                        }
-                        
                         return `${icon}${resource}: ${amount}`;
                     })
                     .join('<br>          ');
                 const inventoryStr = inventoryItems || 'empty';
+                
+                // Get contracts info
+                const sellingContracts = facility.getSellingContracts();
+                const buyingContracts = facility.getBuyingContracts();
+                let contractsHtml = '';
+                
+                if (sellingContracts.length > 0) {
+                    contractsHtml += '<br>        <span style="color: #4ec9b0;">Selling:</span><br>          ';
+                    contractsHtml += sellingContracts.map(c => {
+                        const resourceDef = ResourceRegistry.get(c.resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        const contract = game.getMarket().getContract(c.contractId);
+                        const status = contract && contract.lastFailedTick !== null ? ' [FAILED]' : '';
+                        return `${icon}${c.resource}: ${c.amountPerTick}/tick @ $${c.pricePerUnit.toFixed(2)}${status}`;
+                    }).join('<br>          ');
+                }
+                
+                if (buyingContracts.length > 0) {
+                    contractsHtml += '<br>        <span style="color: #ce9178;">Buying:</span><br>          ';
+                    contractsHtml += buyingContracts.map(c => {
+                        const resourceDef = ResourceRegistry.get(c.resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        const contract = game.getMarket().getContract(c.contractId);
+                        const status = contract && contract.lastFailedTick !== null ? ' [FAILED]' : '';
+                        return `${icon}${c.resource}: ${c.amountPerTick}/tick @ $${c.pricePerUnit.toFixed(2)}${status}`;
+                    }).join('<br>          ');
+                }
+                
+                // Get flow information
+                let flowHtml = '';
+                
+                // Imports
+                const imports = facility.getImportRate();
+                if (imports.size > 0) {
+                    flowHtml += '<br>        <span style="color: #9cdcfe;">Import:</span> ';
+                    const importParts = [];
+                    imports.forEach((rate, resource) => {
+                        const resourceDef = ResourceRegistry.get(resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        importParts.push(`${icon}+${rate.toFixed(2)}/tick`);
+                    });
+                    flowHtml += importParts.join(', ');
+                }
+                
+                // Exports
+                const exports = facility.getExportRate();
+                if (exports.size > 0) {
+                    flowHtml += '<br>        <span style="color: #9cdcfe;">Export:</span> ';
+                    const exportParts = [];
+                    exports.forEach((rate, resource) => {
+                        const resourceDef = ResourceRegistry.get(resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        exportParts.push(`${icon}-${rate.toFixed(2)}/tick`);
+                    });
+                    flowHtml += exportParts.join(', ');
+                }
+                
+                // Production
+                const production = facility.getProductionRate();
+                if (production.size > 0) {
+                    flowHtml += '<br>        <span style="color: #4ec9b0;">Production:</span> ';
+                    const prodParts = [];
+                    production.forEach((rate, resource) => {
+                        const resourceDef = ResourceRegistry.get(resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        prodParts.push(`${icon}+${rate.toFixed(2)}/tick`);
+                    });
+                    flowHtml += prodParts.join(', ');
+                }
+                
+                // Consumption
+                const consumption = facility.getConsumptionRate();
+                if (consumption.size > 0) {
+                    flowHtml += '<br>        <span style="color: #f48771;">Consumption:</span> ';
+                    const consParts = [];
+                    consumption.forEach((rate, resource) => {
+                        const resourceDef = ResourceRegistry.get(resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        consParts.push(`${icon}-${rate.toFixed(2)}/tick`);
+                    });
+                    flowHtml += consParts.join(', ');
+                }
+                
+                // Net flow
+                const netFlow = facility.getNetFlow();
+                if (netFlow.size > 0) {
+                    flowHtml += '<br>        <span style="color: #dcdcaa; font-weight: bold;">Net:</span> ';
+                    const netParts = [];
+                    netFlow.forEach((rate, resource) => {
+                        const resourceDef = ResourceRegistry.get(resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        const sign = rate >= 0 ? '+' : '';
+                        const color = rate >= 0 ? '#4ec9b0' : '#f48771';
+                        netParts.push(`<span style="color: ${color};">${icon}${sign}${rate.toFixed(2)}/tick</span>`);
+                    });
+                    flowHtml += netParts.join(', ');
+                }
+                
+                // Depletion warnings
+                let depletionHtml = '';
+                const depletionWarnings = [];
+                netFlow.forEach((rate, resource) => {
+                    if (rate < 0) {
+                        const ticks = facility.getTicksUntilDepletion(resource);
+                        if (ticks !== null) {
+                            const resourceDef = ResourceRegistry.get(resource);
+                            const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                            const color = ticks <= 5 ? '#f48771' : (ticks <= 10 ? '#ce9178' : '#9cdcfe');
+                            depletionWarnings.push(`<span style="color: ${color};">${icon}${ticks} ticks</span>`);
+                        }
+                    }
+                });
+                if (depletionWarnings.length > 0) {
+                    depletionHtml = '<br>        <span style="color: #f48771; font-weight: bold;">⚠️ Depleting:</span> ' + depletionWarnings.join(', ');
+                }
                 
                 html += `
                     <div class="facility-item">
@@ -637,7 +968,7 @@
                         <div class="facility-status" style="color: #666; font-size: 10px;">ID: ${facility.id}</div>
                         <div class="facility-status">Recipe: ${recipeName}</div>
                         <div class="facility-status">Status: ${statusStr}</div>
-                        <div class="facility-inventory">Inventory: ${inventoryStr}</div>
+                        <div class="facility-inventory">Inventory: ${inventoryStr}${contractsHtml}${flowHtml}${depletionHtml}</div>
                     </div>
                 `;
             });
@@ -727,23 +1058,23 @@
             }
         };
 
-        window.executeListMarket = function(companyId) {
+        window.executeCreateSellOffer = function(companyId) {
             const company = companyId === 'alice' ? alice : bob;
             
             if (company.facilities.length === 0) {
-                addMessage('Need at least 1 facility to list resources!', 'error');
+                addMessage('Need at least 1 facility to create sell offer!', 'error');
                 return;
             }
 
-            const facilityIndex = parseInt(document.getElementById(`${companyId}MarketFacility`).value);
-            const resource = document.getElementById(`${companyId}MarketResource`).value;
-            const amount = parseInt(document.getElementById(`${companyId}MarketAmount`).value);
-            const price = parseFloat(document.getElementById(`${companyId}MarketPrice`).value);
+            const facilityIndex = parseInt(document.getElementById(`${companyId}SellOfferFacility`).value);
+            const resource = document.getElementById(`${companyId}SellOfferResource`).value;
+            const amount = parseInt(document.getElementById(`${companyId}SellOfferAmount`).value);
+            const price = parseFloat(document.getElementById(`${companyId}SellOfferPrice`).value);
 
             const facility = company.facilities[facilityIndex];
             
             if (facility) {
-                const listing = company.listResourceOnMarket(
+                const offer = company.createSellOffer(
                     game.getMarket(),
                     facility,
                     resource,
@@ -751,47 +1082,174 @@
                     price
                 );
                 
-                if (listing) {
+                if (offer) {
                     const resourceDef = ResourceRegistry.get(resource);
                     const icon = resourceDef ? resourceDef.icon : '';
-                    addMessage(`✅ Listed ${amount} ${icon} ${resource} @ $${price.toFixed(2)}/unit`, 'success');
-                    toggleForm(`${companyId}Market`);
+                    addMessage(`✅ Created sell offer: ${amount} ${icon} ${resource}/tick @ $${price.toFixed(2)}/unit`, 'success');
+                    toggleForm(`${companyId}SellOffer`);
                 } else {
-                    addMessage(`❌ Listing failed. Not enough resources?`, 'error');
+                    addMessage(`❌ Sell offer creation failed!`, 'error');
                 }
                 updateDisplay();
             }
         };
 
-        window.executeBuy = function(companyId) {
+        window.executeCreateContract = function(companyId) {
             const company = companyId === 'alice' ? alice : bob;
             const otherCompany = companyId === 'alice' ? bob : alice;
             
             if (company.facilities.length === 0) {
-                addMessage('Need at least 1 facility to receive purchased resources!', 'error');
+                addMessage('Need at least 1 facility to receive resources!', 'error');
                 return;
             }
 
             const market = game.getMarket();
-            const listingId = document.getElementById(`${companyId}BuyListing`).value;
-            const facilityIndex = parseInt(document.getElementById(`${companyId}BuyFacility`).value);
+            const offerId = document.getElementById(`${companyId}ContractOffer`).value;
+            const facilityIndex = parseInt(document.getElementById(`${companyId}ContractFacility`).value);
+            const amount = parseInt(document.getElementById(`${companyId}ContractAmount`).value);
 
-            const listing = market.getListing(listingId);
+            const offer = market.getSellOffer(offerId);
             const facility = company.facilities[facilityIndex];
             
-            if (listing && facility) {
-                const success = company.purchaseFromMarket(market, otherCompany, listing.id, facility);
+            if (offer && facility) {
+                const contract = company.acceptSellOffer(
+                    market,
+                    otherCompany,
+                    offer.id,
+                    facility,
+                    amount,
+                    game.getTickCount()
+                );
                 
-                if (success) {
-                    const resourceDef = ResourceRegistry.get(listing.resource);
+                if (contract) {
+                    const resourceDef = ResourceRegistry.get(contract.resource);
                     const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                    addMessage(`✅ Purchased ${listing.amount} ${icon}${listing.resource} for $${listing.totalPrice.toFixed(2)}`, 'success');
-                    toggleForm(`${companyId}Buy`);
+                    addMessage(`✅ Created contract: ${amount} ${icon}${contract.resource}/tick @ $${contract.pricePerUnit.toFixed(2)}/unit with ${contract.sellerName}`, 'success');
+                    toggleForm(`${companyId}Contract`);
                 } else {
-                    addMessage(`❌ Purchase failed. Not enough funds or can't buy from yourself?`, 'error');
+                    addMessage(`❌ Contract creation failed. Can't buy from yourself or not enough available?`, 'error');
                 }
                 updateDisplay();
             }
+        };
+        
+        window.executeCancel = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            const type = document.getElementById(`${companyId}CancelType`).value;
+            const id = document.getElementById(`${companyId}CancelSelect`).value;
+            
+            if (!id) {
+                addMessage('Nothing selected to cancel!', 'error');
+                return;
+            }
+            
+            const market = game.getMarket();
+            let success = false;
+            
+            if (type === 'offer') {
+                success = company.cancelSellOffer(market, id);
+                if (success) {
+                    addMessage(`✅ Sell offer cancelled`, 'success');
+                } else {
+                    addMessage(`❌ Failed to cancel sell offer`, 'error');
+                }
+            } else {
+                // Get the contract to find the other company
+                const contract = market.getContract(id);
+                if (contract) {
+                    // Need to clean up both sides
+                    const otherCompany = contract.sellerId === company.id ? 
+                        (company.id === 'alice' ? bob : alice) : 
+                        (company.id === 'alice' ? bob : alice);
+                    
+                    // Cancel from this company (will handle both facilities)
+                    success = company.cancelContract(market, id);
+                    
+                    // Also remove from the other company's facility
+                    if (contract.sellerId !== company.id) {
+                        otherCompany.removeContractFromFacility(id, contract.sellerFacilityId);
+                    } else {
+                        otherCompany.removeContractFromFacility(id, contract.buyerFacilityId);
+                    }
+                    
+                    if (success) {
+                        addMessage(`✅ Contract cancelled`, 'success');
+                    } else {
+                        addMessage(`❌ Failed to cancel contract`, 'error');
+                    }
+                } else {
+                    addMessage(`❌ Contract not found`, 'error');
+                }
+            }
+            
+            if (success) {
+                toggleForm(`${companyId}Cancel`);
+            }
+            updateDisplay();
+        };
+        
+        window.executeEditOffer = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            const id = document.getElementById(`${companyId}EditSelect`).value;
+            const newPrice = parseFloat(document.getElementById(`${companyId}EditOfferPrice`).value);
+            const newAmount = parseInt(document.getElementById(`${companyId}EditOfferAmount`).value);
+            
+            if (!id) {
+                addMessage('No offer selected!', 'error');
+                return;
+            }
+            
+            const success = company.updateSellOffer(game.getMarket(), id, newPrice, newAmount);
+            
+            if (success) {
+                addMessage(`✅ Sell offer updated: ${newAmount}/tick @ $${newPrice.toFixed(2)}/unit`, 'success');
+                toggleForm(`${companyId}Edit`);
+            } else {
+                addMessage(`❌ Failed to update sell offer`, 'error');
+            }
+            updateDisplay();
+        };
+        
+        window.executeEditContractSeller = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            const id = document.getElementById(`${companyId}EditSelect`).value;
+            const newPrice = parseFloat(document.getElementById(`${companyId}EditContractSellerPrice`).value);
+            
+            if (!id) {
+                addMessage('No contract selected!', 'error');
+                return;
+            }
+            
+            const success = company.updateContractPrice(game.getMarket(), id, newPrice);
+            
+            if (success) {
+                addMessage(`✅ Contract price updated to $${newPrice.toFixed(2)}/unit`, 'success');
+                toggleForm(`${companyId}Edit`);
+            } else {
+                addMessage(`❌ Failed to update contract price`, 'error');
+            }
+            updateDisplay();
+        };
+        
+        window.executeEditContractBuyer = function(companyId) {
+            const company = companyId === 'alice' ? alice : bob;
+            const id = document.getElementById(`${companyId}EditSelect`).value;
+            const newAmount = parseInt(document.getElementById(`${companyId}EditContractBuyerAmount`).value);
+            
+            if (!id) {
+                addMessage('No contract selected!', 'error');
+                return;
+            }
+            
+            const success = company.updateContractAmount(game.getMarket(), id, newAmount);
+            
+            if (success) {
+                addMessage(`✅ Contract amount updated to ${newAmount}/tick`, 'success');
+                toggleForm(`${companyId}Edit`);
+            } else {
+                addMessage(`❌ Failed to update contract amount. Not enough in stock?`, 'error');
+            }
+            updateDisplay();
         };
 
         // Initialize display

@@ -2,10 +2,12 @@ import { Recipe } from './Recipe.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
 import type { Market } from './Market.js';
 
-export interface MarketListingInfo {
-  listingId: string;
-  amount: number;
+export interface ContractInfo {
+  contractId: string;
+  resource: string;
+  amountPerTick: number;
   pricePerUnit: number;
+  isSelling: boolean; // true if this facility is selling, false if buying
 }
 
 export class Facility {
@@ -14,7 +16,7 @@ export class Facility {
   type: string;
   ownerId: string;
   inventory: Map<string, number>;
-  marketListings: Map<string, MarketListingInfo[]>; // resource -> array of listing info
+  contracts: Map<string, ContractInfo>; // contractId -> contract info
   recipe: Recipe | null;
   productionProgress: number;
   isProducing: boolean;
@@ -25,7 +27,7 @@ export class Facility {
     this.type = type;
     this.ownerId = ownerId;
     this.inventory = new Map();
-    this.marketListings = new Map();
+    this.contracts = new Map();
     this.recipe = null;
     this.productionProgress = 0;
     this.isProducing = false;
@@ -62,63 +64,15 @@ export class Facility {
 
   /**
    * Remove resources from facility inventory
-   * For internal use (production, transfer): reduces available first, then adjusts listings if needed
    */
-  removeResource(resource: string, amount: number, market?: Market): boolean {
+  removeResource(resource: string, amount: number): boolean {
     const current = this.inventory.get(resource) || 0;
     if (current < amount) {
       return false;
     }
     
-    const newTotal = current - amount;
-    this.inventory.set(resource, newTotal);
-    
-    // Check if we need to adjust market listings
-    const listed = this.getListedAmount(resource);
-    if (listed > 0 && market) {
-      // If the new total is less than what's listed, we need to reduce listings
-      if (newTotal < listed) {
-        const reduceListingsBy = listed - newTotal;
-        this.reduceMarketListings(resource, reduceListingsBy, market);
-      }
-    }
-    
+    this.inventory.set(resource, current - amount);
     return true;
-  }
-  
-  /**
-   * Reduce market listings for a resource proportionally
-   */
-  private reduceMarketListings(resource: string, amountToReduce: number, market: Market): void {
-    const listings = this.marketListings.get(resource);
-    if (!listings || listings.length === 0) return;
-    
-    let remaining = amountToReduce;
-    
-    // Reduce from listings proportionally (oldest first)
-    for (let i = 0; i < listings.length && remaining > 0; i++) {
-      const listing = listings[i];
-      const reduceAmount = Math.min(listing.amount, remaining);
-      
-      listing.amount -= reduceAmount;
-      remaining -= reduceAmount;
-      
-      // Update the market listing
-      if (listing.amount <= 0) {
-        // Remove from market
-        market.removeListing(listing.listingId);
-        listings.splice(i, 1);
-        i--; // Adjust index after removal
-      } else {
-        // Update market listing amount
-        market.updateListingAmount(listing.listingId, listing.amount);
-      }
-    }
-    
-    // Clean up empty arrays
-    if (listings.length === 0) {
-      this.marketListings.delete(resource);
-    }
   }
 
   /**
@@ -129,103 +83,142 @@ export class Facility {
   }
 
   /**
-   * Get the amount of a resource that is listed on the market
+   * Add a contract to this facility
    */
-  getListedAmount(resource: string): number {
-    const listings = this.marketListings.get(resource) || [];
-    return listings.reduce((sum, listing) => sum + listing.amount, 0);
-  }
-
-  /**
-   * Get the available (unlisted) amount of a resource
-   */
-  getAvailableAmount(resource: string): number {
-    const total = this.getResource(resource);
-    const listed = this.getListedAmount(resource);
-    return total - listed;
-  }
-
-  /**
-   * Add a market listing for resources in this facility
-   */
-  addMarketListing(resource: string, amount: number, listingId: string, pricePerUnit: number): boolean {
-    // Check if we have enough available resources
-    if (this.getAvailableAmount(resource) < amount) {
-      return false;
-    }
-
-    // Add to market listings
-    if (!this.marketListings.has(resource)) {
-      this.marketListings.set(resource, []);
-    }
-    
-    this.marketListings.get(resource)!.push({
-      listingId,
-      amount,
-      pricePerUnit
+  addContract(contractId: string, resource: string, amountPerTick: number, pricePerUnit: number, isSelling: boolean): void {
+    this.contracts.set(contractId, {
+      contractId,
+      resource,
+      amountPerTick,
+      pricePerUnit,
+      isSelling
     });
-
-    return true;
   }
 
   /**
-   * Remove a market listing from this facility
+   * Remove a contract from this facility
    */
-  removeMarketListing(resource: string, listingId: string): boolean {
-    const listings = this.marketListings.get(resource);
-    if (!listings) {
-      return false;
-    }
-
-    const index = listings.findIndex(l => l.listingId === listingId);
-    if (index === -1) {
-      return false;
-    }
-
-    // Remove the listing
-    listings.splice(index, 1);
-
-    // Clean up empty arrays
-    if (listings.length === 0) {
-      this.marketListings.delete(resource);
-    }
-
-    return true;
+  removeContract(contractId: string): boolean {
+    return this.contracts.delete(contractId);
   }
 
   /**
-   * Remove resources from inventory when sold on market
-   * Reduces both total inventory and the specific listing
+   * Get all selling contracts for this facility
    */
-  soldFromMarket(resource: string, listingId: string, market?: Market): boolean {
-    const listings = this.marketListings.get(resource);
-    if (!listings) {
-      return false;
-    }
+  getSellingContracts(): ContractInfo[] {
+    return Array.from(this.contracts.values()).filter(c => c.isSelling);
+  }
 
-    const listingIndex = listings.findIndex(l => l.listingId === listingId);
-    if (listingIndex === -1) {
-      return false;
-    }
+  /**
+   * Get all buying contracts for this facility
+   */
+  getBuyingContracts(): ContractInfo[] {
+    return Array.from(this.contracts.values()).filter(c => !c.isSelling);
+  }
 
-    const listing = listings[listingIndex];
-    const current = this.inventory.get(resource) || 0;
+  /**
+   * Get import rate per tick (resources coming in from buying contracts)
+   */
+  getImportRate(): Map<string, number> {
+    const imports = new Map<string, number>();
+    this.getBuyingContracts().forEach(contract => {
+      const current = imports.get(contract.resource) || 0;
+      imports.set(contract.resource, current + contract.amountPerTick);
+    });
+    return imports;
+  }
+
+  /**
+   * Get export rate per tick (resources going out from selling contracts)
+   */
+  getExportRate(): Map<string, number> {
+    const exports = new Map<string, number>();
+    this.getSellingContracts().forEach(contract => {
+      const current = exports.get(contract.resource) || 0;
+      exports.set(contract.resource, current + contract.amountPerTick);
+    });
+    return exports;
+  }
+
+  /**
+   * Get production rate per tick (what this facility produces)
+   */
+  getProductionRate(): Map<string, number> {
+    const production = new Map<string, number>();
+    if (!this.recipe) return production;
+
+    this.recipe.outputs.forEach(output => {
+      const ratePerTick = output.amount / this.recipe!.ticksRequired;
+      production.set(output.resource, ratePerTick);
+    });
+    return production;
+  }
+
+  /**
+   * Get consumption rate per tick (what this facility consumes for production)
+   */
+  getConsumptionRate(): Map<string, number> {
+    const consumption = new Map<string, number>();
+    if (!this.recipe) return consumption;
+
+    this.recipe.inputs.forEach(input => {
+      const ratePerTick = input.amount / this.recipe!.ticksRequired;
+      consumption.set(input.resource, ratePerTick);
+    });
+    return consumption;
+  }
+
+  /**
+   * Get net flow per tick for each resource (production + imports - consumption - exports)
+   */
+  getNetFlow(): Map<string, number> {
+    const netFlow = new Map<string, number>();
     
-    // Check if we have enough in inventory
-    if (current < listing.amount) {
-      return false;
+    // Add all resources we're tracking
+    const allResources = new Set<string>();
+    this.inventory.forEach((_, resource) => allResources.add(resource));
+    this.getImportRate().forEach((_, resource) => allResources.add(resource));
+    this.getExportRate().forEach((_, resource) => allResources.add(resource));
+    this.getProductionRate().forEach((_, resource) => allResources.add(resource));
+    this.getConsumptionRate().forEach((_, resource) => allResources.add(resource));
+    
+    // Calculate net for each resource
+    allResources.forEach(resource => {
+      let net = 0;
+      net += this.getImportRate().get(resource) || 0;
+      net += this.getProductionRate().get(resource) || 0;
+      net -= this.getExportRate().get(resource) || 0;
+      net -= this.getConsumptionRate().get(resource) || 0;
+      
+      if (net !== 0) {
+        netFlow.set(resource, net);
+      }
+    });
+    
+    return netFlow;
+  }
+
+  /**
+   * Get ticks until resource runs out (only for resources with negative net flow)
+   * Returns null if resource won't run out (positive or zero net flow)
+   */
+  getTicksUntilDepletion(resource: string): number | null {
+    const netFlow = this.getNetFlow().get(resource) || 0;
+    
+    // If net flow is positive or zero, resource won't run out
+    if (netFlow >= 0) {
+      return null;
     }
-
-    // Remove from total inventory
-    this.inventory.set(resource, current - listing.amount);
-
-    // Remove from market listings
-    listings.splice(listingIndex, 1);
-    if (listings.length === 0) {
-      this.marketListings.delete(resource);
+    
+    const currentAmount = this.getResource(resource);
+    
+    // If no inventory, it's already depleted
+    if (currentAmount <= 0) {
+      return 0;
     }
-
-    return true;
+    
+    // Calculate ticks until depletion
+    return Math.floor(currentAmount / Math.abs(netFlow));
   }
 
   /**
@@ -248,7 +241,7 @@ export class Facility {
   /**
    * Process one tick of production
    */
-  processTick(market?: Market): void {
+  processTick(): void {
     // Try to auto-start production if not producing
     if (!this.isProducing && this.recipe) {
       this.startProduction();
@@ -263,19 +256,19 @@ export class Facility {
 
     // Check if production is complete
     if (this.productionProgress >= this.recipe.ticksRequired) {
-      this.completeProduction(market);
+      this.completeProduction();
     }
   }
 
   /**
    * Complete the current production cycle
    */
-  private completeProduction(market?: Market): void {
+  private completeProduction(): void {
     if (!this.recipe) return;
 
-    // Consume inputs (market parameter allows automatic listing reduction if needed)
+    // Consume inputs
     this.recipe.inputs.forEach(input => {
-      this.removeResource(input.resource, input.amount, market);
+      this.removeResource(input.resource, input.amount);
     });
 
     // Produce outputs
@@ -297,20 +290,85 @@ export class Facility {
   getStatus(): string {
     const inventoryStr = Array.from(this.inventory.entries())
       .filter(([_, amount]) => amount > 0)
-      .map(([resource, amount]) => {
-        const listed = this.getListedAmount(resource);
-        if (listed > 0) {
-          const available = amount - listed;
-          return `${resource}: ${amount} (${available} available, ${listed} listed)`;
-        }
-        return `${resource}: ${amount}`;
-      })
+      .map(([resource, amount]) => `${resource}: ${amount}`)
       .join(', ');
 
     const statusStr = this.isProducing 
       ? `Producing (${this.productionProgress}/${this.recipe?.ticksRequired})` 
       : 'Idle';
 
-    return `[${this.name}] ${statusStr} | Inventory: {${inventoryStr || 'empty'}}`;
+    const contractsStr: string[] = [];
+    const sellingCount = this.getSellingContracts().length;
+    const buyingCount = this.getBuyingContracts().length;
+    if (sellingCount > 0) contractsStr.push(`${sellingCount} selling`);
+    if (buyingCount > 0) contractsStr.push(`${buyingCount} buying`);
+    const contractInfo = contractsStr.length > 0 ? ` | Contracts: ${contractsStr.join(', ')}` : '';
+
+    // Build flow information (imports, exports, production, consumption)
+    const flowParts: string[] = [];
+    
+    // Imports (buying contracts)
+    const imports = this.getImportRate();
+    if (imports.size > 0) {
+      const importStr = Array.from(imports.entries())
+        .map(([resource, rate]) => `${resource}: +${rate.toFixed(2)}/t`)
+        .join(', ');
+      flowParts.push(`Import: {${importStr}}`);
+    }
+    
+    // Exports (selling contracts)
+    const exports = this.getExportRate();
+    if (exports.size > 0) {
+      const exportStr = Array.from(exports.entries())
+        .map(([resource, rate]) => `${resource}: -${rate.toFixed(2)}/t`)
+        .join(', ');
+      flowParts.push(`Export: {${exportStr}}`);
+    }
+    
+    // Production
+    const production = this.getProductionRate();
+    if (production.size > 0) {
+      const prodStr = Array.from(production.entries())
+        .map(([resource, rate]) => `${resource}: +${rate.toFixed(2)}/t`)
+        .join(', ');
+      flowParts.push(`Production: {${prodStr}}`);
+    }
+    
+    // Consumption
+    const consumption = this.getConsumptionRate();
+    if (consumption.size > 0) {
+      const consStr = Array.from(consumption.entries())
+        .map(([resource, rate]) => `${resource}: -${rate.toFixed(2)}/t`)
+        .join(', ');
+      flowParts.push(`Consumption: {${consStr}}`);
+    }
+    
+    // Net flow
+    const netFlow = this.getNetFlow();
+    if (netFlow.size > 0) {
+      const netStr = Array.from(netFlow.entries())
+        .map(([resource, rate]) => {
+          const sign = rate >= 0 ? '+' : '';
+          return `${resource}: ${sign}${rate.toFixed(2)}/t`;
+        })
+        .join(', ');
+      flowParts.push(`Net: {${netStr}}`);
+    }
+    
+    const flowInfo = flowParts.length > 0 ? ` | ${flowParts.join(' | ')}` : '';
+
+    // Depletion warnings (only for resources with negative net flow)
+    const depletionWarnings: string[] = [];
+    netFlow.forEach((rate, resource) => {
+      if (rate < 0) {
+        const ticks = this.getTicksUntilDepletion(resource);
+        if (ticks !== null && ticks <= 10) {
+          depletionWarnings.push(`${resource}: ${ticks}t`);
+        }
+      }
+    });
+    const depletionInfo = depletionWarnings.length > 0 ? ` | ⚠️ Depleting: {${depletionWarnings.join(', ')}}` : '';
+
+    return `[${this.name}] ${statusStr} | Inventory: {${inventoryStr || 'empty'}}${contractInfo}${flowInfo}${depletionInfo}`;
   }
 }

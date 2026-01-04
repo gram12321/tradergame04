@@ -1,5 +1,5 @@
 import { Facility } from './Facility.js';
-import { Market, MarketListing } from './Market.js';
+import { Market, SellOffer, Contract } from './Market.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
 import { RecipeRegistry } from './RecipeRegistry.js';
 
@@ -60,19 +60,19 @@ export class Company {
   /**
    * Transfer resources between two facilities
    */
-  transferResource(fromFacility: Facility, toFacility: Facility, resource: string, amount: number, market?: Market): boolean {
+  transferResource(fromFacility: Facility, toFacility: Facility, resource: string, amount: number): boolean {
     // Verify both facilities belong to this company
     if (fromFacility.ownerId !== this.id || toFacility.ownerId !== this.id) {
       return false;
     }
 
-    // Check if source has enough resources (using total inventory)
+    // Check if source has enough resources
     if (fromFacility.getResource(resource) < amount) {
       return false;
     }
 
-    // Perform transfer (market parameter allows automatic listing reduction if needed)
-    if (fromFacility.removeResource(resource, amount, market)) {
+    // Perform transfer
+    if (fromFacility.removeResource(resource, amount)) {
       toFacility.addResource(resource, amount);
       return true;
     }
@@ -88,125 +88,249 @@ export class Company {
   }
 
   /**
-   * List resources from a facility on the market
+   * Create a sell offer on the market
+   * Resources are NOT reserved - they stay in facility inventory
    */
-  listResourceOnMarket(
+  createSellOffer(
     market: Market,
     facility: Facility,
     resource: string,
-    amount: number,
+    amountAvailable: number,
     pricePerUnit: number
-  ): MarketListing | null {
+  ): SellOffer | null {
     // Verify facility belongs to this company
     if (facility.ownerId !== this.id) {
       return null;
     }
 
-    // Check if facility has enough total resources to list
-    // (We use available to prevent double-listing the same resources)
-    if (facility.getAvailableAmount(resource) < amount) {
-      return null;
-    }
-
-    // Add listing to market
-    const listing = market.addListing(
+    // No check needed - resources are not reserved
+    // The seller can list more than they have, contracts will just fail if resources aren't available
+    
+    // Add sell offer to market
+    const offer = market.addSellOffer(
       this.id,
       this.name,
       facility.id,
       resource,
-      amount,
+      amountAvailable,
       pricePerUnit
     );
 
-    // Add market listing in facility inventory
-    if (!facility.addMarketListing(resource, amount, listing.id, pricePerUnit)) {
-      // If reservation fails, remove the listing from market
-      market.removeListing(listing.id);
+    return offer;
+  }
+
+  /**
+   * Cancel a sell offer
+   */
+  cancelSellOffer(
+    market: Market,
+    offerId: string
+  ): boolean {
+    const offer = market.getSellOffer(offerId);
+    
+    // Verify offer exists and belongs to this company
+    if (!offer || offer.sellerId !== this.id) {
+      return false;
+    }
+
+    // Remove offer from market
+    return market.removeSellOffer(offerId);
+  }
+
+  /**
+   * Accept a sell offer and create a contract
+   */
+  acceptSellOffer(
+    market: Market,
+    seller: Company,
+    offerId: string,
+    buyingFacility: Facility,
+    amountPerTick: number,
+    currentTick: number
+  ): Contract | null {
+    const offer = market.getSellOffer(offerId);
+    
+    // Verify offer exists
+    if (!offer) {
       return null;
     }
 
-    return listing;
-  }
-
-  /**
-   * Cancel a market listing and remove it from facility
-   */
-  cancelMarketListing(
-    market: Market,
-    listingId: string
-  ): boolean {
-    const listing = market.getListing(listingId);
-    
-    // Verify listing exists and belongs to this company
-    if (!listing || listing.sellerId !== this.id) {
-      return false;
-    }
-
-    // Find the facility
-    const facility = this.facilities.find(f => f.id === listing.facilityId);
-    if (!facility) {
-      return false;
-    }
-
-    // Remove listing from facility
-    facility.removeMarketListing(listing.resource, listingId);
-
-    // Remove listing from market
-    return market.removeListing(listingId);
-  }
-
-  /**
-   * Purchase a listing from the market
-   */
-  purchaseFromMarket(
-    market: Market,
-    seller: Company,
-    listingId: string,
-    receivingFacility: Facility
-  ): boolean {
-    const listing = market.getListing(listingId);
-    
-    // Verify listing exists
-    if (!listing) {
-      return false;
-    }
-
     // Can't buy from yourself
-    if (listing.sellerId === this.id) {
-      return false;
+    if (offer.sellerId === this.id) {
+      return null;
     }
 
-    // Verify receiving facility belongs to this company
-    if (receivingFacility.ownerId !== this.id) {
-      return false;
+    // Verify buying facility belongs to this company
+    if (buyingFacility.ownerId !== this.id) {
+      return null;
     }
 
-    // Check if buyer has enough balance
-    if (this.balance < listing.totalPrice) {
-      return false;
+    // Verify amount is available
+    if (offer.amountAvailable < amountPerTick) {
+      return null;
+    }
+
+    // Create contract in market
+    const contract = market.createContract(
+      offer,
+      this.id,
+      this.name,
+      buyingFacility.id,
+      amountPerTick,
+      currentTick
+    );
+
+    if (!contract) {
+      return null;
     }
 
     // Find seller's facility
-    const sellerFacility = seller.facilities.find(f => f.id === listing.facilityId);
+    const sellerFacility = seller.facilities.find(f => f.id === offer.sellerFacilityId);
     if (!sellerFacility) {
+      // Rollback contract creation
+      market.cancelContract(contract.id);
+      return null;
+    }
+
+    // Add contract to both facilities for tracking
+    sellerFacility.addContract(contract.id, contract.resource, contract.amountPerTick, contract.pricePerUnit, true);
+    buyingFacility.addContract(contract.id, contract.resource, contract.amountPerTick, contract.pricePerUnit, false);
+
+    return contract;
+  }
+
+  /**
+   * Cancel a contract (can be called by either buyer or seller)
+   */
+  cancelContract(
+    market: Market,
+    contractId: string
+  ): boolean {
+    const contract = market.getContract(contractId);
+    
+    // Verify contract exists
+    if (!contract) {
       return false;
     }
 
-    // Remove resources from seller's facility (this also removes the listing)
-    if (!sellerFacility.soldFromMarket(listing.resource, listingId, market)) {
+    // Verify this company is either buyer or seller
+    if (contract.buyerId !== this.id && contract.sellerId !== this.id) {
       return false;
     }
 
-    // Transfer money
-    this.balance -= listing.totalPrice;
-    seller.balance += listing.totalPrice;
+    // Find both facilities
+    let sellerFacility: Facility | undefined;
+    let buyerFacility: Facility | undefined;
 
-    // Add resources to receiving facility
-    receivingFacility.addResource(listing.resource, listing.amount);
+    // Find seller facility (might be in this company or another)
+    if (contract.sellerId === this.id) {
+      sellerFacility = this.facilities.find(f => f.id === contract.sellerFacilityId);
+    }
+    
+    // Find buyer facility (might be in this company or another)
+    if (contract.buyerId === this.id) {
+      buyerFacility = this.facilities.find(f => f.id === contract.buyerFacilityId);
+    }
 
-    // Remove listing from market
-    market.removeListing(listingId);
+    // Remove contract from facilities that we found
+    if (sellerFacility) {
+      sellerFacility.removeContract(contractId);
+    }
+    if (buyerFacility) {
+      buyerFacility.removeContract(contractId);
+    }
+
+    // Cancel contract in market
+    return market.cancelContract(contractId) !== null;
+  }
+
+  /**
+   * Update contract amount (buyer side)
+   */
+  updateContractAmount(
+    market: Market,
+    contractId: string,
+    newAmount: number
+  ): boolean {
+    const contract = market.getContract(contractId);
+    
+    // Verify contract exists and this company is the buyer
+    if (!contract || contract.buyerId !== this.id) {
+      return false;
+    }
+
+    // Update in market
+    if (!market.updateContractAmount(contractId, newAmount)) {
+      return false;
+    }
+
+    // Update in buyer's facility
+    const buyerFacility = this.facilities.find(f => f.id === contract.buyerFacilityId);
+    if (buyerFacility) {
+      buyerFacility.removeContract(contractId);
+      buyerFacility.addContract(contractId, contract.resource, newAmount, contract.pricePerUnit, false);
+    }
 
     return true;
+  }
+
+  /**
+   * Update contract price (seller side)
+   */
+  updateContractPrice(
+    market: Market,
+    contractId: string,
+    newPrice: number
+  ): boolean {
+    const contract = market.getContract(contractId);
+    
+    // Verify contract exists and this company is the seller
+    if (!contract || contract.sellerId !== this.id) {
+      return false;
+    }
+
+    // Update in market
+    if (!market.updateContractPrice(contractId, newPrice)) {
+      return false;
+    }
+
+    // Update in seller's facility
+    const sellerFacility = this.facilities.find(f => f.id === contract.sellerFacilityId);
+    if (sellerFacility) {
+      sellerFacility.removeContract(contractId);
+      sellerFacility.addContract(contractId, contract.resource, contract.amountPerTick, newPrice, true);
+    }
+
+    return true;
+  }
+
+  /**
+   * Update sell offer price and/or amount (seller side)
+   */
+  updateSellOffer(
+    market: Market,
+    offerId: string,
+    newPrice?: number,
+    newAmount?: number
+  ): boolean {
+    const offer = market.getSellOffer(offerId);
+    
+    // Verify offer exists and belongs to this company
+    if (!offer || offer.sellerId !== this.id) {
+      return false;
+    }
+
+    return market.updateSellOffer(offerId, newPrice, newAmount);
+  }
+
+  /**
+   * Helper to remove contract from facilities (used by GameEngine during processing)
+   * This is for when the other company cancels and we need to clean up our side
+   */
+  removeContractFromFacility(contractId: string, facilityId: string): void {
+    const facility = this.facilities.find(f => f.id === facilityId);
+    if (facility) {
+      facility.removeContract(contractId);
+    }
   }
 }

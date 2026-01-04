@@ -64,26 +64,26 @@ let tickInterval = setInterval(() => {
     }
   }
   
-  // List resources on the market at tick 18
+  // Create sell offers on the market at tick 18
   if (tick === 18) {
     const market = game.getMarket();
-    console.log('\n💰 Alice Corp listing resources on the market...');
+    console.log('\n💰 Alice Corp creating sell offers on the market...');
     
-    // List some grain from the farm
+    // Create sell offer for grain from the farm
     const farm = alice.facilities[0];
     if (farm && farm.getResource('grain') > 0) {
-      const grainListing = alice.listResourceOnMarket(market, farm, 'grain', 5, 2.50);
-      if (grainListing) {
-        console.log(`✅ Listed 5 grain @ $2.50/unit (Total: $${grainListing.totalPrice.toFixed(2)})`);
+      const grainOffer = alice.createSellOffer(market, farm, 'grain', 5, 2.50);
+      if (grainOffer) {
+        console.log(`✅ Created sell offer: 5 grain/tick @ $2.50/unit`);
       }
     }
     
-    // List some bread from the bakery
+    // Create sell offer for bread from the bakery
     const bakery = alice.facilities[2];
     if (bakery && bakery.getResource('bread') > 0) {
-      const breadListing = alice.listResourceOnMarket(market, bakery, 'bread', 2, 10.00);
-      if (breadListing) {
-        console.log(`✅ Listed 2 bread @ $10.00/unit (Total: $${breadListing.totalPrice.toFixed(2)})`);
+      const breadOffer = alice.createSellOffer(market, bakery, 'bread', 2, 10.00);
+      if (breadOffer) {
+        console.log(`✅ Created sell offer: 2 bread/tick @ $10.00/unit`);
       }
     }
   }
@@ -103,28 +103,27 @@ let tickInterval = setInterval(() => {
     console.log(market.displayMarket());
   }
   
-  // Bob buys bread from Alice at tick 22
+  // Bob creates a contract to buy bread from Alice at tick 22
   if (tick === 22 && bob.facilities.length > 0) {
     const market = game.getMarket();
-    const breadListings = market.getListingsByResource('bread');
+    const breadOffers = market.getSellOffersByResource('bread');
     
-    if (breadListings.length > 0) {
-      const listing = breadListings[0];
+    if (breadOffers.length > 0) {
+      const offer = breadOffers[0];
       const warehouse = bob.facilities[0];
       
-      console.log(`\n🛒 Bob Industries purchasing bread from ${listing.sellerName}...`);
-      console.log(`   Listing: ${listing.amount} bread @ $${listing.pricePerUnit.toFixed(2)}/unit = $${listing.totalPrice.toFixed(2)}`);
+      console.log(`\n🛒 Bob Industries creating contract to buy bread from ${offer.sellerName}...`);
+      console.log(`   Offer: ${offer.amountAvailable} bread/tick available @ $${offer.pricePerUnit.toFixed(2)}/unit`);
       console.log(`   Bob's balance before: $${bob.balance.toFixed(2)}`);
       
-      const success = bob.purchaseFromMarket(market, alice, listing.id, warehouse);
+      const contract = bob.acceptSellOffer(market, alice, offer.id, warehouse, 2, game.getTickCount());
       
-      if (success) {
-        console.log(`✅ Purchase successful!`);
-        console.log(`   Bob's balance after: $${bob.balance.toFixed(2)}`);
-        console.log(`   Alice's balance after: $${alice.balance.toFixed(2)}`);
-        console.log(`   Bread in warehouse: ${warehouse.getResource('bread')}`);
+      if (contract) {
+        console.log(`✅ Contract created!`);
+        console.log(`   Contract: ${contract.amountPerTick} bread/tick @ $${contract.pricePerUnit.toFixed(2)}/unit = $${contract.totalPrice.toFixed(2)}/tick`);
+        console.log(`   Contract will execute starting next tick`);
       } else {
-        console.log(`❌ Purchase failed!`);
+        console.log(`❌ Contract creation failed!`);
       }
     }
   }
