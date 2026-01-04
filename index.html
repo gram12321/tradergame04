@@ -239,6 +239,18 @@
     <div class="container">
         <h1>🎮 Trader Game 04</h1>
         
+        <div class="controls">
+            <div class="section-title">Company Selection</div>
+            <div class="control-row">
+                <label>Active Company:</label>
+                <select id="companySelector" onchange="switchCompany()">
+                    <option value="alice">👩‍💼 Alice Corp</option>
+                    <option value="bob">🏭 Bob Industries</option>
+                </select>
+                <span style="margin-left: 20px; color: #9cdcfe;">Current Balance: <span id="currentBalance">$10,000.00</span></span>
+            </div>
+        </div>
+        
         <div class="facilities-info" id="facilitiesInfo"></div>
         <div class="facilities-info" id="resourcesInfo"></div>
         <div class="facilities-info" id="citiesInfo"></div>
@@ -257,129 +269,129 @@
         </div>
 
         <div class="company-panel">
-            <div class="company-header">
+            <div class="company-header" id="currentCompanyHeader">
                 <span>👩‍💼 Alice Corp</span>
-                <span class="balance" id="aliceBalance">$10,000.00</span>
+                <span class="balance" id="currentCompanyBalance">$10,000.00</span>
             </div>
-            <div class="facility-list" id="aliceFacilities"></div>
+            <div class="facility-list" id="currentCompanyFacilities"></div>
         </div>
 
         <div class="controls">
-            <div class="section-title">Alice Corp Actions</div>
+            <div class="section-title" id="currentCompanyActionsTitle">Alice Corp Actions</div>
             <div class="control-row">
                 <label>Facility Type:</label>
-                <select id="aliceFacilityType">
+                <select id="currentFacilityType">
                     <option value="farm">Farm ($1000)</option>
                     <option value="mill">Mill ($1500)</option>
                     <option value="bakery">Bakery ($2000)</option>
                     <option value="warehouse">Warehouse ($500)</option>
                 </select>
                 <label>City:</label>
-                <select id="aliceFacilityCity">
+                <select id="currentFacilityCity">
                     <option value="Copenhagen,Denmark">Copenhagen (Denmark, wealth 0.9)</option>
                     <option value="Aarhus,Denmark">Aarhus (Denmark, wealth 0.85)</option>
                     <option value="Prague,Czech Republic">Prague (Czech Republic, wealth 0.3)</option>
                     <option value="Cairo,Egypt">Cairo (Egypt, wealth 0.1)</option>
                 </select>
-                <button onclick="createFacility('alice')">Build Facility</button>
+                <button onclick="createFacility()">Build Facility</button>
             </div>
             <div class="control-row">
-                <button onclick="toggleForm('aliceTransfer')">Transfer Resources</button>
-                <button onclick="toggleForm('aliceSellOffer')">Create Sell Offer</button>
-                <button onclick="toggleForm('aliceContract')">Create Buy Contract</button>
-                <button onclick="toggleForm('aliceUpgrade')">Upgrade Facility</button>
-                <button onclick="toggleForm('aliceWorkers')">Hire/Fire Workers</button>
-                <button onclick="toggleForm('aliceEdit')">Edit Offer/Contract</button>
-                <button onclick="toggleForm('aliceCancel')">Cancel Offer/Contract</button>
+                <button onclick="toggleForm('currentTransfer')">Transfer Resources</button>
+                <button onclick="toggleForm('currentSellOffer')">Create Sell Offer</button>
+                <button onclick="toggleForm('currentContract')">Create Buy Contract</button>
+                <button onclick="toggleForm('currentUpgrade')">Upgrade Facility</button>
+                <button onclick="toggleForm('currentWorkers')">Hire/Fire Workers</button>
+                <button onclick="toggleForm('currentEdit')">Edit Offer/Contract</button>
+                <button onclick="toggleForm('currentCancel')">Cancel Offer/Contract</button>
             </div>
             
-            <div id="aliceTransfer" class="action-form">
+            <div id="currentTransfer" class="action-form">
                 <div class="form-row">
                     <label>From Facility:</label>
-                    <select id="aliceTransferFrom"></select>
+                    <select id="currentTransferFrom"></select>
                 </div>
                 <div class="form-row">
                     <label>To Facility:</label>
-                    <select id="aliceTransferTo"></select>
+                    <select id="currentTransferTo"></select>
                 </div>
                 <div class="form-row">
                     <label>Resource:</label>
-                    <select id="aliceTransferResource"></select>
+                    <select id="currentTransferResource"></select>
                 </div>
                 <div class="form-row">
                     <label>Amount:</label>
-                    <input type="number" id="aliceTransferAmount" min="1" value="1">
+                    <input type="number" id="currentTransferAmount" min="1" value="1">
                 </div>
-                <button onclick="executeTransfer('alice')">Execute Transfer</button>
-                <button onclick="toggleForm('aliceTransfer')" class="secondary">Cancel</button>
+                <button onclick="executeTransfer()">Execute Transfer</button>
+                <button onclick="toggleForm('currentTransfer')" class="secondary">Cancel</button>
             </div>
             
-            <div id="aliceUpgrade" class="action-form">
+            <div id="currentUpgrade" class="action-form">
                 <div class="form-row">
                     <label>Select Facility:</label>
-                    <select id="aliceUpgradeFacility"></select>
+                    <select id="currentUpgradeFacility"></select>
                 </div>
-                <div id="aliceUpgradeInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
-                <button onclick="executeUpgrade('alice')">Upgrade Facility</button>
-                <button onclick="toggleForm('aliceUpgrade')" class="secondary">Cancel</button>
+                <div id="currentUpgradeInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
+                <button onclick="executeUpgrade()">Upgrade Facility</button>
+                <button onclick="toggleForm('currentUpgrade')" class="secondary">Cancel</button>
             </div>
             
-            <div id="aliceWorkers" class="action-form">
+            <div id="currentWorkers" class="action-form">
                 <div class="form-row">
                     <label>Select Facility:</label>
-                    <select id="aliceWorkersFacility" onchange="updateWorkersSlider('alice')"></select>
+                    <select id="currentWorkersFacility" onchange="updateWorkersSlider('current')"></select>
                 </div>
-                <div id="aliceWorkersInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
+                <div id="currentWorkersInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
                 <div class="form-row">
-                    <label>Workers: <span id="aliceWorkersValue">0</span></label>
-                    <input type="range" id="aliceWorkersSlider" min="1" max="10" value="1" oninput="updateWorkersDisplay('alice')">
+                    <label>Workers: <span id="currentWorkersValue">0</span></label>
+                    <input type="range" id="currentWorkersSlider" min="1" max="10" value="1" oninput="updateWorkersDisplay('current')">
                 </div>
-                <button onclick="executeSetWorkers('alice')">Set Worker Count</button>
-                <button onclick="toggleForm('aliceWorkers')" class="secondary">Cancel</button>
+                <button onclick="executeSetWorkers()">Set Worker Count</button>
+                <button onclick="toggleForm('currentWorkers')" class="secondary">Cancel</button>
             </div>
             
-            <div id="aliceSellOffer" class="action-form">
+            <div id="currentSellOffer" class="action-form">
                 <div class="form-row">
                     <label>From Facility:</label>
-                    <select id="aliceSellOfferFacility"></select>
+                    <select id="currentSellOfferFacility"></select>
                 </div>
                 <div class="form-row">
                     <label>Resource:</label>
-                    <select id="aliceSellOfferResource"></select>
+                    <select id="currentSellOfferResource"></select>
                 </div>
                 <div class="form-row">
                     <label>Amount/tick:</label>
-                    <input type="number" id="aliceSellOfferAmount" min="1" value="1">
+                    <input type="number" id="currentSellOfferAmount" min="1" value="1">
                 </div>
                 <div class="form-row">
                     <label>Price per Unit:</label>
-                    <input type="number" id="aliceSellOfferPrice" min="0.01" step="0.01" value="1.00">
+                    <input type="number" id="currentSellOfferPrice" min="0.01" step="0.01" value="1.00">
                 </div>
-                <button onclick="executeCreateSellOffer('alice')">Create Sell Offer</button>
-                <button onclick="toggleForm('aliceSellOffer')" class="secondary">Cancel</button>
+                <button onclick="executeCreateSellOffer()">Create Sell Offer</button>
+                <button onclick="toggleForm('currentSellOffer')" class="secondary">Cancel</button>
             </div>
             
-            <div id="aliceContract" class="action-form">
+            <div id="currentContract" class="action-form">
                 <div class="form-row">
                     <label>Sell Offer:</label>
-                    <select id="aliceContractOffer"></select>
+                    <select id="currentContractOffer"></select>
                 </div>
                 <div class="form-row">
                     <label>To Facility:</label>
-                    <select id="aliceContractFacility"></select>
+                    <select id="currentContractFacility"></select>
                 </div>
                 <div class="form-row">
                     <label>Amount/tick:</label>
-                    <input type="number" id="aliceContractAmount" min="1" value="1">
+                    <input type="number" id="currentContractAmount" min="1" value="1">
                 </div>
-                <button onclick="executeCreateContract('alice')">Create Contract</button>
-                <button onclick="toggleForm('aliceContract')" class="secondary">Cancel</button>
+                <button onclick="executeCreateContract()">Create Contract</button>
+                <button onclick="toggleForm('currentContract')" class="secondary">Cancel</button>
             </div>
             
-            <div id="aliceEdit" class="action-form">
+            <div id="currentEdit" class="action-form">
                 <div class="form-row">
                     <label>Type:</label>
-                    <select id="aliceEditType" onchange="updateEditOptions('alice')">
+                    <select id="currentEditType" onchange="updateEditOptions()">
                         <option value="offer">My Sell Offer</option>
                         <option value="contract-seller">My Contract (Selling)</option>
                         <option value="contract-buyer">My Contract (Buying)</option>
@@ -387,230 +399,54 @@
                 </div>
                 <div class="form-row">
                     <label>Select:</label>
-                    <select id="aliceEditSelect" onchange="populateEditForm('alice')"></select>
+                    <select id="currentEditSelect" onchange="populateEditForm()"></select>
                 </div>
-                <div id="aliceEditOfferForm" style="display: none;">
+                <div id="currentEditOfferForm" style="display: none;">
                     <div class="form-row">
                         <label>New Price/unit:</label>
-                        <input type="number" id="aliceEditOfferPrice" min="0.01" step="0.01" value="1.00">
+                        <input type="number" id="currentEditOfferPrice" min="0.01" step="0.01" value="1.00">
                     </div>
                     <div class="form-row">
                         <label>New Amount/tick:</label>
-                        <input type="number" id="aliceEditOfferAmount" min="1" value="1">
+                        <input type="number" id="currentEditOfferAmount" min="1" value="1">
                     </div>
-                    <button onclick="executeEditOffer('alice')">Update Offer</button>
+                    <button onclick="executeEditOffer()">Update Offer</button>
                 </div>
-                <div id="aliceEditContractSellerForm" style="display: none;">
+                <div id="currentEditContractSellerForm" style="display: none;">
                     <div class="form-row">
                         <label>New Price/unit:</label>
-                        <input type="number" id="aliceEditContractSellerPrice" min="0.01" step="0.01" value="1.00">
+                        <input type="number" id="currentEditContractSellerPrice" min="0.01" step="0.01" value="1.00">
                     </div>
-                    <button onclick="executeEditContractSeller('alice')">Update Price</button>
+                    <button onclick="executeEditContractSeller()">Update Price</button>
                 </div>
-                <div id="aliceEditContractBuyerForm" style="display: none;">
+                <div id="currentEditContractBuyerForm" style="display: none;">
                     <div class="form-row">
                         <label>New Amount/tick:</label>
-                        <input type="number" id="aliceEditContractBuyerAmount" min="1" value="1">
+                        <input type="number" id="currentEditContractBuyerAmount" min="1" value="1">
                     </div>
-                    <button onclick="executeEditContractBuyer('alice')">Update Amount</button>
+                    <button onclick="executeEditContractBuyer()">Update Amount</button>
                 </div>
-                <button onclick="toggleForm('aliceEdit')" class="secondary">Close</button>
+                <button onclick="toggleForm('currentEdit')" class="secondary">Close</button>
             </div>
             
-            <div id="aliceCancel" class="action-form">
+            <div id="currentCancel" class="action-form">
                 <div class="form-row">
                     <label>Type:</label>
-                    <select id="aliceCancelType" onchange="updateCancelOptions('alice')">
+                    <select id="currentCancelType" onchange="updateCancelOptions()">
                         <option value="offer">Sell Offer</option>
                         <option value="contract">Contract</option>
                     </select>
                 </div>
                 <div class="form-row">
                     <label>Select:</label>
-                    <select id="aliceCancelSelect"></select>
+                    <select id="currentCancelSelect"></select>
                 </div>
-                <button onclick="executeCancel('alice')">Cancel</button>
-                <button onclick="toggleForm('aliceCancel')" class="secondary">Close</button>
+                <button onclick="executeCancel()">Cancel</button>
+                <button onclick="toggleForm('currentCancel')" class="secondary">Close</button>
             </div>
         </div>
 
-        <div class="company-panel">
-            <div class="company-header">
-                <span>🏭 Bob Industries</span>
-                <span class="balance" id="bobBalance">$10,000.00</span>
-            </div>
-            <div class="facility-list" id="bobFacilities"></div>
-        </div>
-
-        <div class="controls">
-            <div class="section-title">Bob Industries Actions</div>
-            <div class="control-row">
-                <label>Facility Type:</label>
-                <select id="bobFacilityType">
-                    <option value="farm">Farm ($1000)</option>
-                    <option value="mill">Mill ($1500)</option>
-                    <option value="bakery">Bakery ($2000)</option>
-                    <option value="warehouse">Warehouse ($500)</option>
-                </select>
-                <label>City:</label>
-                <select id="bobFacilityCity">
-                    <option value="Copenhagen,Denmark">Copenhagen (Denmark, wealth 0.9)</option>
-                    <option value="Aarhus,Denmark">Aarhus (Denmark, wealth 0.85)</option>
-                    <option value="Prague,Czech Republic">Prague (Czech Republic, wealth 0.3)</option>
-                    <option value="Cairo,Egypt">Cairo (Egypt, wealth 0.1)</option>
-                </select>
-                <button onclick="createFacility('bob')">Build Facility</button>
-            </div>
-            <div class="control-row">
-                <button onclick="toggleForm('bobTransfer')">Transfer Resources</button>
-                <button onclick="toggleForm('bobSellOffer')">Create Sell Offer</button>
-                <button onclick="toggleForm('bobContract')">Create Buy Contract</button>
-                <button onclick="toggleForm('bobUpgrade')">Upgrade Facility</button>
-                <button onclick="toggleForm('bobWorkers')">Hire/Fire Workers</button>
-                <button onclick="toggleForm('bobEdit')">Edit Offer/Contract</button>
-                <button onclick="toggleForm('bobCancel')">Cancel Offer/Contract</button>
-            </div>
-            
-            <div id="bobTransfer" class="action-form">
-                <div class="form-row">
-                    <label>From Facility:</label>
-                    <select id="bobTransferFrom"></select>
-                </div>
-                <div class="form-row">
-                    <label>To Facility:</label>
-                    <select id="bobTransferTo"></select>
-                </div>
-                <div class="form-row">
-                    <label>Resource:</label>
-                    <select id="bobTransferResource"></select>
-                </div>
-                <div class="form-row">
-                    <label>Amount:</label>
-                    <input type="number" id="bobTransferAmount" min="1" value="1">
-                </div>
-                <button onclick="executeTransfer('bob')">Execute Transfer</button>
-                <button onclick="toggleForm('bobTransfer')" class="secondary">Cancel</button>
-            </div>
-            
-            <div id="bobUpgrade" class="action-form">
-                <div class="form-row">
-                    <label>Select Facility:</label>
-                    <select id="bobUpgradeFacility"></select>
-                </div>
-                <div id="bobUpgradeInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
-                <button onclick="executeUpgrade('bob')">Upgrade Facility</button>
-                <button onclick="toggleForm('bobUpgrade')" class="secondary">Cancel</button>
-            </div>
-            
-            <div id="bobWorkers" class="action-form">
-                <div class="form-row">
-                    <label>Select Facility:</label>
-                    <select id="bobWorkersFacility" onchange="updateWorkersSlider('bob')"></select>
-                </div>
-                <div id="bobWorkersInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
-                <div class="form-row">
-                    <label>Workers: <span id="bobWorkersValue">0</span></label>
-                    <input type="range" id="bobWorkersSlider" min="1" max="10" value="1" oninput="updateWorkersDisplay('bob')">
-                </div>
-                <button onclick="executeSetWorkers('bob')">Set Worker Count</button>
-                <button onclick="toggleForm('bobWorkers')" class="secondary">Cancel</button>
-            </div>
-            
-            <div id="bobSellOffer" class="action-form">
-                <div class="form-row">
-                    <label>From Facility:</label>
-                    <select id="bobSellOfferFacility"></select>
-                </div>
-                <div class="form-row">
-                    <label>Resource:</label>
-                    <select id="bobSellOfferResource"></select>
-                </div>
-                <div class="form-row">
-                    <label>Amount/tick:</label>
-                    <input type="number" id="bobSellOfferAmount" min="1" value="1">
-                </div>
-                <div class="form-row">
-                    <label>Price per Unit:</label>
-                    <input type="number" id="bobSellOfferPrice" min="0.01" step="0.01" value="1.00">
-                </div>
-                <button onclick="executeCreateSellOffer('bob')">Create Sell Offer</button>
-                <button onclick="toggleForm('bobSellOffer')" class="secondary">Cancel</button>
-            </div>
-            
-            <div id="bobContract" class="action-form">
-                <div class="form-row">
-                    <label>Sell Offer:</label>
-                    <select id="bobContractOffer"></select>
-                </div>
-                <div class="form-row">
-                    <label>To Facility:</label>
-                    <select id="bobContractFacility"></select>
-                </div>
-                <div class="form-row">
-                    <label>Amount/tick:</label>
-                    <input type="number" id="bobContractAmount" min="1" value="1">
-                </div>
-                <button onclick="executeCreateContract('bob')">Create Contract</button>
-                <button onclick="toggleForm('bobContract')" class="secondary">Cancel</button>
-            </div>
-            
-            <div id="bobEdit" class="action-form">
-                <div class="form-row">
-                    <label>Type:</label>
-                    <select id="bobEditType" onchange="updateEditOptions('bob')">
-                        <option value="offer">My Sell Offer</option>
-                        <option value="contract-seller">My Contract (Selling)</option>
-                        <option value="contract-buyer">My Contract (Buying)</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <label>Select:</label>
-                    <select id="bobEditSelect" onchange="populateEditForm('bob')"></select>
-                </div>
-                <div id="bobEditOfferForm" style="display: none;">
-                    <div class="form-row">
-                        <label>New Price/unit:</label>
-                        <input type="number" id="bobEditOfferPrice" min="0.01" step="0.01" value="1.00">
-                    </div>
-                    <div class="form-row">
-                        <label>New Amount/tick:</label>
-                        <input type="number" id="bobEditOfferAmount" min="1" value="1">
-                    </div>
-                    <button onclick="executeEditOffer('bob')">Update Offer</button>
-                </div>
-                <div id="bobEditContractSellerForm" style="display: none;">
-                    <div class="form-row">
-                        <label>New Price/unit:</label>
-                        <input type="number" id="bobEditContractSellerPrice" min="0.01" step="0.01" value="1.00">
-                    </div>
-                    <button onclick="executeEditContractSeller('bob')">Update Price</button>
-                </div>
-                <div id="bobEditContractBuyerForm" style="display: none;">
-                    <div class="form-row">
-                        <label>New Amount/tick:</label>
-                        <input type="number" id="bobEditContractBuyerAmount" min="1" value="1">
-                    </div>
-                    <button onclick="executeEditContractBuyer('bob')">Update Amount</button>
-                </div>
-                <button onclick="toggleForm('bobEdit')" class="secondary">Close</button>
-            </div>
-            
-            <div id="bobCancel" class="action-form">
-                <div class="form-row">
-                    <label>Type:</label>
-                    <select id="bobCancelType" onchange="updateCancelOptions('bob')">
-                        <option value="offer">Sell Offer</option>
-                        <option value="contract">Contract</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <label>Select:</label>
-                    <select id="bobCancelSelect"></select>
-                </div>
-                <button onclick="executeCancel('bob')">Cancel</button>
-                <button onclick="toggleForm('bobCancel')" class="secondary">Close</button>
-            </div>
-        </div>
+        
 
         <div class="market-display" id="marketDisplay"></div>
 
@@ -648,6 +484,41 @@
             }
         }
 
+        // Get the current selected company
+        function getCurrentCompany() {
+            const selector = document.getElementById('companySelector');
+            const currentId = selector.value;
+            return currentId === 'alice' ? alice : bob;
+        }
+
+        // Get current company display name
+        function getCurrentCompanyName() {
+            const selector = document.getElementById('companySelector');
+            const currentId = selector.value;
+            return currentId === 'alice' ? 'Alice Corp' : 'Bob Industries';
+        }
+
+        // Switch company and update UI
+        window.switchCompany = function() {
+            const currentCompany = getCurrentCompany();
+            const currentName = getCurrentCompanyName();
+            
+            // Update company header
+            document.getElementById('currentCompanyHeader').innerHTML = 
+                `<span>${currentName}</span><span class="balance" id="currentCompanyBalance">$${currentCompany.balance.toFixed(2)}</span>`;
+            
+            // Update actions title
+            document.getElementById('currentCompanyActionsTitle').textContent = 
+                `${currentName} Actions`;
+            
+            // Update current balance display
+            document.getElementById('currentBalance').textContent = 
+                `$${currentCompany.balance.toFixed(2)}`;
+            
+            // Close all forms
+            document.querySelectorAll('.action-form').forEach(f => f.classList.remove('active'));
+        };
+
         window.toggleForm = function(formId) {
             const form = document.getElementById(formId);
             const isActive = form.classList.contains('active');
@@ -663,28 +534,27 @@
         };
 
         function updateFormOptions(formId) {
-            const company = formId.startsWith('alice') ? alice : bob;
-            const companyId = formId.startsWith('alice') ? 'alice' : 'bob';
+            const company = getCurrentCompany();
             
             // Update facility dropdowns
             if (formId.includes('Transfer')) {
-                updateFacilityDropdowns(`${companyId}TransferFrom`, company);
-                updateFacilityDropdowns(`${companyId}TransferTo`, company);
-                updateResourceDropdowns(`${companyId}TransferResource`);
+                updateFacilityDropdowns('currentTransferFrom', company);
+                updateFacilityDropdowns('currentTransferTo', company);
+                updateResourceDropdowns('currentTransferResource');
             } else if (formId.includes('Upgrade')) {
-                updateUpgradeFacilityDropdown(companyId, company);
+                updateUpgradeFacilityDropdown('current', company);
             } else if (formId.includes('Workers')) {
-                updateWorkersFacilityDropdown(companyId, company);
+                updateWorkersFacilityDropdown('current', company);
             } else if (formId.includes('SellOffer')) {
-                updateFacilityDropdowns(`${companyId}SellOfferFacility`, company);
-                updateResourceDropdowns(`${companyId}SellOfferResource`);
+                updateFacilityDropdowns('currentSellOfferFacility', company);
+                updateResourceDropdowns('currentSellOfferResource');
             } else if (formId.includes('Contract')) {
-                updateFacilityDropdowns(`${companyId}ContractFacility`, company);
-                updateSellOffers(`${companyId}ContractOffer`);
+                updateFacilityDropdowns('currentContractFacility', company);
+                updateSellOffers('currentContractOffer');
             } else if (formId.includes('Edit')) {
-                updateEditOptions(companyId);
+                updateEditOptions('current');
             } else if (formId.includes('Cancel')) {
-                updateCancelOptions(companyId);
+                updateCancelOptions('current');
             }
         }
 
@@ -718,9 +588,9 @@
             });
         }
 
-        function updateUpgradeFacilityDropdown(companyId, company) {
-            const select = document.getElementById(`${companyId}UpgradeFacility`);
-            const infoDiv = document.getElementById(`${companyId}UpgradeInfo`);
+        function updateUpgradeFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}UpgradeFacility`);
+            const infoDiv = document.getElementById(`${prefix}UpgradeInfo`);
             select.innerHTML = '';
             infoDiv.textContent = '';
             
@@ -754,8 +624,8 @@
             select.onchange();
         }
 
-        function updateWorkersFacilityDropdown(companyId, company) {
-            const select = document.getElementById(`${companyId}WorkersFacility`);
+        function updateWorkersFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}WorkersFacility`);
             select.innerHTML = '';
             
             if (company.facilities.length === 0) {
@@ -771,7 +641,7 @@
             });
             
             // Trigger initial slider update
-            updateWorkersSlider(companyId);
+            updateWorkersSlider(prefix);
         }
 
         function updateSellOffers(selectId) {
@@ -795,10 +665,10 @@
             });
         }
         
-        window.updateCancelOptions = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const type = document.getElementById(`${companyId}CancelType`).value;
-            const select = document.getElementById(`${companyId}CancelSelect`);
+        window.updateCancelOptions = function(prefix) {
+            const company = getCurrentCompany();
+            const type = document.getElementById(`${prefix}CancelType`).value;
+            const select = document.getElementById(`${prefix}CancelSelect`);
             select.innerHTML = '';
             
             if (type === 'offer') {
@@ -837,16 +707,16 @@
             }
         };
         
-        window.updateEditOptions = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const type = document.getElementById(`${companyId}EditType`).value;
-            const select = document.getElementById(`${companyId}EditSelect`);
+        window.updateEditOptions = function(prefix) {
+            const company = getCurrentCompany();
+            const type = document.getElementById(`${prefix}EditType`).value;
+            const select = document.getElementById(`${prefix}EditSelect`);
             select.innerHTML = '';
             
             // Hide all forms
-            document.getElementById(`${companyId}EditOfferForm`).style.display = 'none';
-            document.getElementById(`${companyId}EditContractSellerForm`).style.display = 'none';
-            document.getElementById(`${companyId}EditContractBuyerForm`).style.display = 'none';
+            document.getElementById(`${prefix}EditOfferForm`).style.display = 'none';
+            document.getElementById(`${prefix}EditContractSellerForm`).style.display = 'none';
+            document.getElementById(`${prefix}EditContractBuyerForm`).style.display = 'none';
             
             if (type === 'offer') {
                 const offers = game.getMarket().getAllSellOffers().filter(o => o.sellerId === company.id);
@@ -892,33 +762,33 @@
                 });
             }
             
-            populateEditForm(companyId);
+            populateEditForm(prefix);
         };
         
-        window.populateEditForm = function(companyId) {
-            const type = document.getElementById(`${companyId}EditType`).value;
-            const id = document.getElementById(`${companyId}EditSelect`).value;
+        window.populateEditForm = function(prefix) {
+            const type = document.getElementById(`${prefix}EditType`).value;
+            const id = document.getElementById(`${prefix}EditSelect`).value;
             
             if (!id) return;
             
             if (type === 'offer') {
                 const offer = game.getMarket().getSellOffer(id);
                 if (offer) {
-                    document.getElementById(`${companyId}EditOfferPrice`).value = offer.pricePerUnit;
-                    document.getElementById(`${companyId}EditOfferAmount`).value = offer.amountAvailable;
-                    document.getElementById(`${companyId}EditOfferForm`).style.display = 'block';
+                    document.getElementById(`${prefix}EditOfferPrice`).value = offer.pricePerUnit;
+                    document.getElementById(`${prefix}EditOfferAmount`).value = offer.amountAvailable;
+                    document.getElementById(`${prefix}EditOfferForm`).style.display = 'block';
                 }
             } else if (type === 'contract-seller') {
                 const contract = game.getMarket().getContract(id);
                 if (contract) {
-                    document.getElementById(`${companyId}EditContractSellerPrice`).value = contract.pricePerUnit;
-                    document.getElementById(`${companyId}EditContractSellerForm`).style.display = 'block';
+                    document.getElementById(`${prefix}EditContractSellerPrice`).value = contract.pricePerUnit;
+                    document.getElementById(`${prefix}EditContractSellerForm`).style.display = 'block';
                 }
             } else if (type === 'contract-buyer') {
                 const contract = game.getMarket().getContract(id);
                 if (contract) {
-                    document.getElementById(`${companyId}EditContractBuyerAmount`).value = contract.amountPerTick;
-                    document.getElementById(`${companyId}EditContractBuyerForm`).style.display = 'block';
+                    document.getElementById(`${prefix}EditContractBuyerAmount`).value = contract.amountPerTick;
+                    document.getElementById(`${prefix}EditContractBuyerForm`).style.display = 'block';
                 }
             }
         };
@@ -935,20 +805,23 @@
             let marketHtml = market.displayMarket();
             marketDisplay.textContent = marketHtml;
             
-            // Update Alice's info
-            updateCompanyDisplay(alice, 'alice');
-            
-            // Update Bob's info
-            updateCompanyDisplay(bob, 'bob');
+            // Update current company's info
+            const currentCompany = getCurrentCompany();
+            updateCurrentCompanyDisplay(currentCompany);
         }
 
-        function updateCompanyDisplay(company, companyId) {
-            // Update balance
-            document.getElementById(`${companyId}Balance`).textContent = 
+        function updateCurrentCompanyDisplay(company) {
+            // Update current company header
+            const currentName = getCurrentCompanyName();
+            document.getElementById('currentCompanyHeader').innerHTML = 
+                `<span>${currentName}</span><span class="balance" id="currentCompanyBalance">$${company.balance.toFixed(2)}</span>`;
+            
+            // Update current balance display
+            document.getElementById('currentBalance').textContent = 
                 `$${company.balance.toFixed(2)}`;
             
             // Update facilities
-            const facilitiesDiv = document.getElementById(`${companyId}Facilities`);
+            const facilitiesDiv = document.getElementById('currentCompanyFacilities');
             
             if (company.facilities.length === 0) {
                 facilitiesDiv.innerHTML = '<div style="color: #666; font-style: italic;">No facilities</div>';
@@ -958,7 +831,8 @@
             let html = '';
             company.facilities.forEach((facility, index) => {
                 // Get facility size, workers, and output multiplier
-                const sizeInfo = `Size: ${facility.size} | Workers: ${facility.workers} | Output: ${facility.getProductionMultiplier().toFixed(2)}x`;
+                const requiredWorkers = Math.ceil((FacilityRegistry.get(facility.type)?.workerMultiplier || 1.0) * Math.pow(facility.size, 1.2));
+                const sizeInfo = `Size: ${facility.size} | Workers: ${facility.workers}/${requiredWorkers} | Output: ${facility.getProductionMultiplier().toFixed(2)}x | Effectivity: ${facility.effectivity.toFixed(2)}`;
                 
                 // Get facility status
                 const statusStr = facility.isProducing 
@@ -974,10 +848,19 @@
                     .map(([resource, amount]) => {
                         const resourceDef = ResourceRegistry.get(resource);
                         const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                        return `${icon}${resource}: ${amount}`;
+                        const weight = resourceDef ? resourceDef.weight : 1.0;
+                        const totalWeight = amount * weight;
+                        return `${icon}${resource}: ${amount} (${totalWeight.toFixed(1)}w)`;
                     })
                     .join('<br>          ');
                 const inventoryStr = inventoryItems || 'empty';
+                
+                // Get inventory capacity info
+                const maxCapacity = facility.getMaxInventoryCapacity();
+                const currentInventory = facility.getTotalInventory();
+                const inventoryPercent = Math.round(facility.getInventoryPercentage() * 100);
+                const overCapacityIndicator = facility.isInventoryOverCapacity() ? ' ⚠️ OVER CAPACITY' : '';
+                const capacityStr = `Capacity: ${currentInventory.toFixed(1)}/${maxCapacity} weight (${inventoryPercent}%)${overCapacityIndicator}`;
                 
                 // Get contracts info
                 const sellingContracts = facility.getSellingContracts();
@@ -1102,6 +985,7 @@
                         <div class="facility-status" style="color: #9cdcfe;">${sizeInfo} | 💰 Wage: ${facility.getWagePerTick().toFixed(2)}€/tick</div>
                         <div class="facility-status">Recipe: ${recipeName}</div>
                         <div class="facility-status">Status: ${statusStr}</div>
+                        <div class="facility-status" style="color: #dcdcaa;">${capacityStr}</div>
                         <div class="facility-inventory">Inventory: ${inventoryStr}${contractsHtml}${flowHtml}${depletionHtml}</div>
                     </div>
                 `;
@@ -1148,12 +1032,10 @@
             updateDisplay();
         };
 
-        window.createFacility = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const selectId = companyId + 'FacilityType';
-            const cityId = companyId + 'FacilityCity';
-            const facilityType = document.getElementById(selectId).value;
-            const cityValue = document.getElementById(cityId).value;
+        window.createFacility = function() {
+            const company = getCurrentCompany();
+            const facilityType = document.getElementById('currentFacilityType').value;
+            const cityValue = document.getElementById('currentFacilityCity').value;
             
             // Parse city from "CityName,Country" format
             const [cityName, country] = cityValue.split(',');
@@ -1173,18 +1055,18 @@
             updateDisplay();
         };
 
-        window.executeTransfer = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
+        window.executeTransfer = function() {
+            const company = getCurrentCompany();
             
             if (company.facilities.length < 2) {
                 addMessage('Need at least 2 facilities to transfer resources!', 'error');
                 return;
             }
 
-            const fromIndex = parseInt(document.getElementById(`${companyId}TransferFrom`).value);
-            const toIndex = parseInt(document.getElementById(`${companyId}TransferTo`).value);
-            const resource = document.getElementById(`${companyId}TransferResource`).value;
-            const amount = parseInt(document.getElementById(`${companyId}TransferAmount`).value);
+            const fromIndex = parseInt(document.getElementById('currentTransferFrom').value);
+            const toIndex = parseInt(document.getElementById('currentTransferTo').value);
+            const resource = document.getElementById('currentTransferResource').value;
+            const amount = parseInt(document.getElementById('currentTransferAmount').value);
 
             const from = company.facilities[fromIndex];
             const to = company.facilities[toIndex];
@@ -1195,7 +1077,7 @@
                     const resourceDef = ResourceRegistry.get(resource);
                     const icon = resourceDef ? resourceDef.icon : '';
                     addMessage(`✅ Transferred ${amount} ${icon} ${resource} from Facility ${fromIndex + 1} to Facility ${toIndex + 1}`, 'success');
-                    toggleForm(`${companyId}Transfer`);
+                    toggleForm('currentTransfer');
                 } else {
                     addMessage(`❌ Transfer failed. Not enough resources?`, 'error');
                 }
@@ -1203,15 +1085,15 @@
             }
         };
 
-        window.executeUpgrade = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
+        window.executeUpgrade = function() {
+            const company = getCurrentCompany();
             
             if (company.facilities.length === 0) {
                 addMessage('No facilities to upgrade!', 'error');
                 return;
             }
 
-            const facilityIndex = parseInt(document.getElementById(`${companyId}UpgradeFacility`).value);
+            const facilityIndex = parseInt(document.getElementById('currentUpgradeFacility').value);
             const facility = company.facilities[facilityIndex];
             
             if (facility) {
@@ -1222,7 +1104,7 @@
                 const success = company.upgradeFacility(facility);
                 if (success) {
                     addMessage(`✅ Upgraded ${facility.name}! Size ${oldSize}→${facility.size}, Workers ${oldWorkers}→${facility.workers}, Cost: $${cost.toFixed(2)}`, 'success');
-                    toggleForm(`${companyId}Upgrade`);
+                    toggleForm('currentUpgrade');
                 } else {
                     addMessage(`❌ Upgrade failed. Not enough funds? Need $${cost.toFixed(2)}`, 'error');
                 }
@@ -1230,92 +1112,116 @@
             }
         };
 
-        window.updateWorkersSlider = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const facilityIndex = parseInt(document.getElementById(`${companyId}WorkersFacility`).value);
+        window.updateWorkersSlider = function(prefix) {
+            const company = getCurrentCompany();
+            const facilityIndex = parseInt(document.getElementById(`${prefix}WorkersFacility`).value);
             const facility = company.facilities[facilityIndex];
             
             if (facility) {
                 const requiredWorkers = facility.calculateRequiredWorkers();
                 const maxWorkers = requiredWorkers * 10;
                 const currentWorkers = facility.workers;
-                const slider = document.getElementById(`${companyId}WorkersSlider`);
+                const slider = document.getElementById(`${prefix}WorkersSlider`);
                 
                 slider.min = 0;
                 slider.max = maxWorkers;
                 slider.value = currentWorkers;
                 
-                document.getElementById(`${companyId}WorkersValue`).textContent = currentWorkers;
-                document.getElementById(`${companyId}WorkersInfo`).innerHTML = 
+                document.getElementById(`${prefix}WorkersValue`).textContent = currentWorkers;
+                document.getElementById(`${prefix}WorkersInfo`).innerHTML = 
                     `Current: ${currentWorkers} workers | Required: ${requiredWorkers} workers | Max: ${maxWorkers} workers<br>` +
                     `Current Wage: ${facility.getWagePerTick().toFixed(2)}€/tick`;
             }
         };
 
-        window.updateWorkersDisplay = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const slider = document.getElementById(`${companyId}WorkersSlider`);
-            const facilityIndex = parseInt(document.getElementById(`${companyId}WorkersFacility`).value);
+        window.updateWorkersDisplay = function(prefix) {
+            const company = getCurrentCompany();
+            const slider = document.getElementById(`${prefix}WorkersSlider`);
+            const facilityIndex = parseInt(document.getElementById(`${prefix}WorkersFacility`).value);
             const facility = company.facilities[facilityIndex];
             
             if (facility) {
                 const newWorkerCount = parseInt(slider.value);
                 const newWage = newWorkerCount * 1.0 * facility.city.wealth;
                 
-                document.getElementById(`${companyId}WorkersValue`).textContent = newWorkerCount;
-                
-                // Update wage preview
+                // Calculate preview effectivity
                 const requiredWorkers = facility.calculateRequiredWorkers();
+                const ratio = newWorkerCount / requiredWorkers;
+                let previewEffectivity;
+                if (ratio < 1) {
+                    previewEffectivity = ratio * ratio;
+                } else {
+                    previewEffectivity = 1 + Math.sqrt(ratio - 1);
+                }
+                
+                // Calculate hiring/firing cost
+                const workerChange = Math.abs(newWorkerCount - facility.workers);
+                const hiringCost = 4 * 1.0 * facility.city.wealth * workerChange;
+                const action = newWorkerCount > facility.workers ? 'Hiring' : (newWorkerCount < facility.workers ? 'Firing' : 'No change');
+                
+                document.getElementById(`${prefix}WorkersValue`).textContent = newWorkerCount;
+                
+                // Update wage and effectivity preview
                 const maxWorkers = requiredWorkers * 10;
-                document.getElementById(`${companyId}WorkersInfo`).innerHTML = 
+                const costStr = workerChange > 0 ? `<br>${action} Cost: $${hiringCost.toFixed(2)} (${workerChange} workers × $${(4 * 1.0 * facility.city.wealth).toFixed(2)})` : '';
+                document.getElementById(`${prefix}WorkersInfo`).innerHTML = 
                     `Current: ${facility.workers} workers | Required: ${requiredWorkers} workers | Max: ${maxWorkers} workers<br>` +
-                    `Preview Wage: ${newWage.toFixed(2)}€/tick (currently ${facility.getWagePerTick().toFixed(2)}€/tick)`;
+                    `Preview Wage: ${newWage.toFixed(2)}€/tick (currently ${facility.getWagePerTick().toFixed(2)}€/tick)<br>` +
+                    `Preview Effectivity: ${previewEffectivity.toFixed(2)} (currently ${facility.effectivity.toFixed(2)})` +
+                    costStr;
             }
         };
 
-        window.executeSetWorkers = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
+        window.executeSetWorkers = function() {
+            const company = getCurrentCompany();
             
             if (company.facilities.length === 0) {
                 addMessage('No facilities to manage workers!', 'error');
                 return;
             }
 
-            const facilityIndex = parseInt(document.getElementById(`${companyId}WorkersFacility`).value);
+            const facilityIndex = parseInt(document.getElementById('currentWorkersFacility').value);
             const facility = company.facilities[facilityIndex];
-            const newWorkerCount = parseInt(document.getElementById(`${companyId}WorkersSlider`).value);
+            const newWorkerCount = parseInt(document.getElementById('currentWorkersSlider').value);
             
             if (facility) {
                 const oldWorkers = facility.workers;
                 const oldWage = facility.getWagePerTick();
+                const oldBalance = company.balance;
+                const workerChange = Math.abs(newWorkerCount - oldWorkers);
+                const hiringCost = 4 * 1.0 * facility.city.wealth * workerChange;
                 
                 const success = company.setFacilityWorkers(facility, newWorkerCount);
                 if (success) {
                     const newWage = facility.getWagePerTick();
                     const diff = newWorkerCount - oldWorkers;
                     const action = diff > 0 ? 'Hired' : 'Fired';
-                    addMessage(`✅ ${action} ${Math.abs(diff)} workers at ${facility.name}! Workers: ${oldWorkers}→${facility.workers}, Wage: ${oldWage.toFixed(2)}→${newWage.toFixed(2)}€/tick`, 'success');
-                    toggleForm(`${companyId}Workers`);
+                    addMessage(`✅ ${action} ${Math.abs(diff)} workers at ${facility.name}! Cost: $${hiringCost.toFixed(2)} | Workers: ${oldWorkers}→${facility.workers}, Wage: ${oldWage.toFixed(2)}→${newWage.toFixed(2)}€/tick, Effectivity: ${facility.effectivity.toFixed(2)}`, 'success');
+                    toggleForm('currentWorkers');
                 } else {
                     const maxWorkers = facility.calculateRequiredWorkers() * 10;
-                    addMessage(`❌ Failed to set worker count. Must be between 0 and ${maxWorkers}`, 'error');
+                    if (company.balance < hiringCost) {
+                        addMessage(`❌ Insufficient balance! Need $${hiringCost.toFixed(2)}, have $${company.balance.toFixed(2)}`, 'error');
+                    } else {
+                        addMessage(`❌ Failed to set worker count. Must be between 0 and ${maxWorkers}`, 'error');
+                    }
                 }
                 updateDisplay();
             }
         };
 
-        window.executeCreateSellOffer = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
+        window.executeCreateSellOffer = function() {
+            const company = getCurrentCompany();
             
             if (company.facilities.length === 0) {
                 addMessage('Need at least 1 facility to create sell offer!', 'error');
                 return;
             }
 
-            const facilityIndex = parseInt(document.getElementById(`${companyId}SellOfferFacility`).value);
-            const resource = document.getElementById(`${companyId}SellOfferResource`).value;
-            const amount = parseInt(document.getElementById(`${companyId}SellOfferAmount`).value);
-            const price = parseFloat(document.getElementById(`${companyId}SellOfferPrice`).value);
+            const facilityIndex = parseInt(document.getElementById('currentSellOfferFacility').value);
+            const resource = document.getElementById('currentSellOfferResource').value;
+            const amount = parseInt(document.getElementById('currentSellOfferAmount').value);
+            const price = parseFloat(document.getElementById('currentSellOfferPrice').value);
 
             const facility = company.facilities[facilityIndex];
             
@@ -1332,7 +1238,7 @@
                     const resourceDef = ResourceRegistry.get(resource);
                     const icon = resourceDef ? resourceDef.icon : '';
                     addMessage(`✅ Created sell offer: ${amount} ${icon} ${resource}/tick @ $${price.toFixed(2)}/unit`, 'success');
-                    toggleForm(`${companyId}SellOffer`);
+                    toggleForm('currentSellOffer');
                 } else {
                     addMessage(`❌ Sell offer creation failed!`, 'error');
                 }
@@ -1340,9 +1246,9 @@
             }
         };
 
-        window.executeCreateContract = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const otherCompany = companyId === 'alice' ? bob : alice;
+        window.executeCreateContract = function() {
+            const company = getCurrentCompany();
+            const otherCompany = company.id === 'alice' ? bob : alice;
             
             if (company.facilities.length === 0) {
                 addMessage('Need at least 1 facility to receive resources!', 'error');
@@ -1350,9 +1256,9 @@
             }
 
             const market = game.getMarket();
-            const offerId = document.getElementById(`${companyId}ContractOffer`).value;
-            const facilityIndex = parseInt(document.getElementById(`${companyId}ContractFacility`).value);
-            const amount = parseInt(document.getElementById(`${companyId}ContractAmount`).value);
+            const offerId = document.getElementById('currentContractOffer').value;
+            const facilityIndex = parseInt(document.getElementById('currentContractFacility').value);
+            const amount = parseInt(document.getElementById('currentContractAmount').value);
 
             const offer = market.getSellOffer(offerId);
             const facility = company.facilities[facilityIndex];
@@ -1371,7 +1277,7 @@
                     const resourceDef = ResourceRegistry.get(contract.resource);
                     const icon = resourceDef ? resourceDef.icon + ' ' : '';
                     addMessage(`✅ Created contract: ${amount} ${icon}${contract.resource}/tick @ $${contract.pricePerUnit.toFixed(2)}/unit with ${contract.sellerName}`, 'success');
-                    toggleForm(`${companyId}Contract`);
+                    toggleForm('currentContract');
                 } else {
                     addMessage(`❌ Contract creation failed. Can't buy from yourself or not enough available?`, 'error');
                 }
@@ -1379,10 +1285,10 @@
             }
         };
         
-        window.executeCancel = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const type = document.getElementById(`${companyId}CancelType`).value;
-            const id = document.getElementById(`${companyId}CancelSelect`).value;
+        window.executeCancel = function() {
+            const company = getCurrentCompany();
+            const type = document.getElementById('currentCancelType').value;
+            const id = document.getElementById('currentCancelSelect').value;
             
             if (!id) {
                 addMessage('Nothing selected to cancel!', 'error');
@@ -1429,16 +1335,16 @@
             }
             
             if (success) {
-                toggleForm(`${companyId}Cancel`);
+                toggleForm('currentCancel');
             }
             updateDisplay();
         };
         
-        window.executeEditOffer = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const id = document.getElementById(`${companyId}EditSelect`).value;
-            const newPrice = parseFloat(document.getElementById(`${companyId}EditOfferPrice`).value);
-            const newAmount = parseInt(document.getElementById(`${companyId}EditOfferAmount`).value);
+        window.executeEditOffer = function() {
+            const company = getCurrentCompany();
+            const id = document.getElementById('currentEditSelect').value;
+            const newPrice = parseFloat(document.getElementById('currentEditOfferPrice').value);
+            const newAmount = parseInt(document.getElementById('currentEditOfferAmount').value);
             
             if (!id) {
                 addMessage('No offer selected!', 'error');
@@ -1449,17 +1355,17 @@
             
             if (success) {
                 addMessage(`✅ Sell offer updated: ${newAmount}/tick @ $${newPrice.toFixed(2)}/unit`, 'success');
-                toggleForm(`${companyId}Edit`);
+                toggleForm('currentEdit');
             } else {
                 addMessage(`❌ Failed to update sell offer`, 'error');
             }
             updateDisplay();
         };
         
-        window.executeEditContractSeller = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const id = document.getElementById(`${companyId}EditSelect`).value;
-            const newPrice = parseFloat(document.getElementById(`${companyId}EditContractSellerPrice`).value);
+        window.executeEditContractSeller = function() {
+            const company = getCurrentCompany();
+            const id = document.getElementById('currentEditSelect').value;
+            const newPrice = parseFloat(document.getElementById('currentEditContractSellerPrice').value);
             
             if (!id) {
                 addMessage('No contract selected!', 'error');
@@ -1470,17 +1376,17 @@
             
             if (success) {
                 addMessage(`✅ Contract price updated to $${newPrice.toFixed(2)}/unit`, 'success');
-                toggleForm(`${companyId}Edit`);
+                toggleForm('currentEdit');
             } else {
                 addMessage(`❌ Failed to update contract price`, 'error');
             }
             updateDisplay();
         };
         
-        window.executeEditContractBuyer = function(companyId) {
-            const company = companyId === 'alice' ? alice : bob;
-            const id = document.getElementById(`${companyId}EditSelect`).value;
-            const newAmount = parseInt(document.getElementById(`${companyId}EditContractBuyerAmount`).value);
+        window.executeEditContractBuyer = function() {
+            const company = getCurrentCompany();
+            const id = document.getElementById('currentEditSelect').value;
+            const newAmount = parseInt(document.getElementById('currentEditContractBuyerAmount').value);
             
             if (!id) {
                 addMessage('No contract selected!', 'error');
@@ -1491,7 +1397,7 @@
             
             if (success) {
                 addMessage(`✅ Contract amount updated to ${newAmount}/tick`, 'success');
-                toggleForm(`${companyId}Edit`);
+                toggleForm('currentEdit');
             } else {
                 addMessage(`❌ Failed to update contract amount. Not enough in stock?`, 'error');
             }
@@ -1506,6 +1412,9 @@
         const cities = CityRegistry.getAllCities();
         const citiesText = '🏙️ CITIES:\n' + cities.map(city => city.toString()).join('\n');
         document.getElementById('citiesInfo').textContent = citiesText;
+        
+        // Initialize company selection
+        switchCompany();
         
         updateDisplay();
     </script>

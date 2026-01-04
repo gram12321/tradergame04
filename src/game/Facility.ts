@@ -1,7 +1,7 @@
 import { Recipe } from './Recipe.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
 import { City } from './City.js';
-import type { Market } from './Market.js';
+import { ResourceRegistry } from './ResourceRegistry.js';
 
 export interface ContractInfo {
   contractId: string;
@@ -24,6 +24,8 @@ export class Facility {
   isProducing: boolean;
   size: number; // Size of the facility (always starts at 1)
   workers: number; // Current worker count
+  effectivity: number; // Calculated value 0-1, starts at 1
+  cachedMaxInventoryCapacity: number; // Cached capacity calculated once per tick (based on previous tick's effectivity)
 
   constructor(type: string, ownerId: string, name: string, city: City) {
     this.id = Math.random().toString(36).substring(7);
@@ -38,6 +40,8 @@ export class Facility {
     this.isProducing = false;
     this.size = 1;
     this.workers = this.calculateRequiredWorkers();
+    this.effectivity = 1;
+    this.cachedMaxInventoryCapacity = 0; // Will be set on first tick
   }
 
   /**
@@ -50,6 +54,31 @@ export class Facility {
   }
 
   /**
+   * Calculate effectivity based on worker ratio and inventory overflow
+   * Formula: 
+   * - Worker part: Below required (ratio^2), At/Above required (1 + sqrt(ratio-1))
+   * - Inventory part: Applied as multiplier (1.0 if under capacity, reduces if over)
+   * - Final: workerEffectivity * overflowPenalty
+   */
+  calculateEffectivity(): void {
+    const requiredWorkers = this.calculateRequiredWorkers();
+    const ratio = this.workers / requiredWorkers;
+    
+    let workerEffectivity: number;
+    if (ratio < 1) {
+      // Exponential penalty for undersupply (quadratic)
+      workerEffectivity = ratio * ratio;
+    } else {
+      // Diminishing returns for oversupply (square root)
+      workerEffectivity = 1 + Math.sqrt(ratio - 1);
+    }
+    
+    // Apply inventory overflow penalty
+    const overflowPenalty = this.getOverflowPenalty();
+    this.effectivity = workerEffectivity * overflowPenalty;
+  }
+
+  /**
    * Get production multiplier based on size (diminishing returns)
    * Formula: sqrt(size) - gives diminishing returns
    * size=1: 1.0x, size=4: 2.0x, size=9: 3.0x, size=16: 4.0x
@@ -59,11 +88,107 @@ export class Facility {
   }
 
   /**
-   * Calculate wage cost per tick
-   * Formula: workers * baseWage(1€) * city.wealth
+   * Get the cached maximum inventory capacity for this tick
+   * Returns the effective capacity calculated at start of tick using previous tick's effectivity
+   * This breaks the circular dependency by decoupling capacity from current tick's overflow
+   */
+  getMaxInventoryCapacity(): number {
+    return this.cachedMaxInventoryCapacity;
+  }
+
+  /**
+   * Update the cached inventory capacity once per tick
+   * Uses previous tick's effectivity to calculate effective capacity
+   * This breaks the circular dependency: last tick's effectivity → this tick's capacity → overflow → new effectivity
+   */
+  updateInventoryCapacityForTick(): void {
+    const baseCapacity = 100; // Base capacity per facility
+    const definition = FacilityRegistry.get(this.type);
+    const capacityMultiplier = definition?.capacityMultiplier || 1.0;
+    const baseMaxCapacity = Math.ceil(baseCapacity * this.size * capacityMultiplier);
+    // Apply previous tick's effectivity to get effective capacity
+    this.cachedMaxInventoryCapacity = Math.ceil(baseMaxCapacity * this.effectivity);
+  }
+
+  /**
+   * Calculate total inventory weight across all resources
+   * Uses resource weight definitions to calculate total weight capacity usage
+   */
+  getTotalInventory(): number {
+    let totalWeight = 0;
+    this.inventory.forEach((quantity, resourceId) => {
+      const resourceDef = ResourceRegistry.get(resourceId);
+      const weight = resourceDef?.weight || 1.0; // Default to 1.0 if not found
+      totalWeight += quantity * weight;
+    });
+    return totalWeight;
+  }
+
+  /**
+   * Calculate total inventory quantity (item count, not weight)
+   */
+  getTotalInventoryQuantity(): number {
+    let totalQuantity = 0;
+    this.inventory.forEach(quantity => {
+      totalQuantity += quantity;
+    });
+    return totalQuantity;
+  }
+
+  /**
+   * Get inventory as percentage of max capacity (0-1)
+   */
+  getInventoryPercentage(): number {
+    const max = this.getMaxInventoryCapacity();
+    if (max === 0) return 0;
+    return Math.min(1, this.getTotalInventory() / max);
+  }
+
+  /**
+   * Check if inventory exceeds capacity
+   */
+  isInventoryOverCapacity(): boolean {
+    return this.getTotalInventory() > this.getMaxInventoryCapacity();
+  }
+
+  /**
+   * Calculate overflow penalty to effectivity
+   * If inventory > capacity, reduce effectivity by overflow amount
+   * Formula: 1.0 - (overflow / maxCapacity)^2
+   * This creates a quadratic penalty for being over capacity
+   */
+  getOverflowPenalty(): number {
+    const current = this.getTotalInventory();
+    const max = this.getMaxInventoryCapacity();
+    
+    if (current <= max) {
+      return 1.0; // No penalty
+    }
+    
+    const overflow = current - max;
+    const overflowRatio = overflow / max;
+    // Quadratic penalty: being 50% over capacity = 0.75 multiplier, 100% over = 0
+    return Math.max(0, 1.0 - (overflowRatio * overflowRatio));
+  }
+
+  /**
+   * Calculate the cost to hire or fire workers
+   * Formula: 4 * baseWage * city.wealth * |workerChange|
+   * @param newWorkerCount The target worker count
+   * @returns The cost to change to the new worker count
+   */
+  getHiringCost(newWorkerCount: number): number {
+    const workerChange = Math.abs(newWorkerCount - this.workers);
+    const baseWage = 1.0;
+    return 4 * baseWage * this.city.wealth * workerChange;
+  }
+
+  /**
+   * Get the wage cost per tick for current workers
+   * Formula: workers * baseWage * city.wealth
    */
   getWagePerTick(): number {
-    const baseWage = 1.0; // 1€ per worker
+    const baseWage = 1.0;
     return this.workers * baseWage * this.city.wealth;
   }
 
@@ -81,6 +206,7 @@ export class Facility {
     }
     
     this.workers = count;
+    this.calculateEffectivity();
     return true;
   }
 
@@ -110,6 +236,7 @@ export class Facility {
     if (this.workers > requiredWorkers * 10) {
       this.workers = requiredWorkers;
     }
+    this.calculateEffectivity();
     return cost;
   }
 
@@ -323,8 +450,13 @@ export class Facility {
 
   /**
    * Process one tick of production
+   * Updates cached capacity at start of tick, then processes production
    */
   processTick(): void {
+    // Update inventory capacity once per tick (using previous tick's effectivity)
+    // This must be done FIRST to ensure all inventory checks use consistent capacity
+    this.updateInventoryCapacityForTick();
+
     // Try to auto-start production if not producing
     if (!this.isProducing && this.recipe) {
       this.startProduction();

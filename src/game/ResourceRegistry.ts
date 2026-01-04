@@ -7,6 +7,7 @@ export interface ResourceDefinition {
   description: string;
   icon: string; // Emoji
   basePrice: number; // Suggested market price
+  weight: number; // Weight per unit (affects inventory capacity)
 }
 
 /**
@@ -22,7 +23,8 @@ export class ResourceRegistry {
       name: 'Grain',
       description: 'Raw crop harvested from farms',
       icon: '🌾',
-      basePrice: 2.50
+      basePrice: 2.50,
+      weight: 1.0
     });
 
     // Processed goods
@@ -31,7 +33,8 @@ export class ResourceRegistry {
       name: 'Flour',
       description: 'Ground grain ready for baking',
       icon: '🥛',
-      basePrice: 5.00
+      basePrice: 5.00,
+      weight: 0.8
     });
 
     // Finished products
@@ -40,7 +43,8 @@ export class ResourceRegistry {
       name: 'Bread',
       description: 'Freshly baked bread',
       icon: '🍞',
-      basePrice: 10.00
+      basePrice: 10.00,
+      weight: 1.5
     });
   }
 
@@ -72,7 +76,7 @@ export class ResourceRegistry {
     const lines: string[] = ['\n=== Available Resources ==='];
     
     this.resources.forEach(resource => {
-      lines.push(`  ${resource.icon} ${resource.name} - ${resource.description} (Base price: $${resource.basePrice.toFixed(2)})`);
+      lines.push(`  ${resource.icon} ${resource.name} - ${resource.description} (Base price: $${resource.basePrice.toFixed(2)}, Weight: ${resource.weight})`);
     });
 
     return lines.join('\n');

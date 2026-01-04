@@ -60,7 +60,7 @@ let tickInterval = setInterval(() => {
     console.log('\n💼 Alice Corp creates a Farm (size 1) in Copenhagen...');
     const farm = alice.createFacility('farm', copenhagen);
     if (farm) {
-      console.log(`✅ Farm created: Size ${farm.size}, Workers ${farm.workers}, Output ${farm.getProductionMultiplier().toFixed(2)}x`);
+      console.log(`✅ Farm created: Size ${farm.size}, Workers ${farm.workers}, Output ${farm.getProductionMultiplier().toFixed(2)}x, Effectivity ${farm.effectivity.toFixed(2)}`);
       console.log(`   Location: ${farm.city.name}, ${farm.city.country}`);
       console.log(`   Wage: ${farm.getWagePerTick().toFixed(2)}€/tick (${farm.workers} workers * 1€ * ${farm.city.wealth} wealth)`);
       console.log(`   Upgrade cost to size 2: $${farm.getUpgradeCost().toFixed(2)}`);
@@ -71,7 +71,7 @@ let tickInterval = setInterval(() => {
     console.log('\n💼 Alice Corp creates a Mill in Prague...');
     const mill = alice.createFacility('mill', prague);
     if (mill) {
-      console.log(`✅ Mill created: Size ${mill.size}, Workers ${mill.workers}, Output ${mill.getProductionMultiplier().toFixed(2)}x`);
+      console.log(`✅ Mill created: Size ${mill.size}, Workers ${mill.workers}, Output ${mill.getProductionMultiplier().toFixed(2)}x, Effectivity ${mill.effectivity.toFixed(2)}`);
       console.log(`   Location: ${mill.city.name}, ${mill.city.country}`);
       console.log(`   Wage: ${mill.getWagePerTick().toFixed(2)}€/tick (${mill.workers} workers * 1€ * ${mill.city.wealth} wealth)`);
     }
@@ -82,10 +82,12 @@ let tickInterval = setInterval(() => {
     const farm = alice.facilities[0];
     const oldSize = farm.size;
     const oldWorkers = farm.workers;
+    const oldEffectivity = farm.effectivity;
     const cost = farm.getUpgradeCost();
     const success = alice.upgradeFacility(farm);
     if (success) {
       console.log(`✅ Farm upgraded! Size ${oldSize}→${farm.size}, Workers ${oldWorkers}→${farm.workers}, Output ${Math.sqrt(oldSize).toFixed(2)}x→${farm.getProductionMultiplier().toFixed(2)}x`);
+      console.log(`   Effectivity: ${oldEffectivity.toFixed(2)}→${farm.effectivity.toFixed(2)}`);
       console.log(`   Cost: $${cost.toFixed(2)}, Balance: $${alice.balance.toFixed(2)}`);
       console.log(`   Next upgrade cost: $${farm.getUpgradeCost().toFixed(2)}`);
     } else {
@@ -98,10 +100,12 @@ let tickInterval = setInterval(() => {
     const farm = alice.facilities[0];
     const oldSize = farm.size;
     const oldWorkers = farm.workers;
+    const oldEffectivity = farm.effectivity;
     const cost = farm.getUpgradeCost();
     const success = alice.upgradeFacility(farm);
     if (success) {
       console.log(`✅ Farm upgraded! Size ${oldSize}→${farm.size}, Workers ${oldWorkers}→${farm.workers}, Output ${Math.sqrt(oldSize).toFixed(2)}x→${farm.getProductionMultiplier().toFixed(2)}x`);
+      console.log(`   Effectivity: ${oldEffectivity.toFixed(2)}→${farm.effectivity.toFixed(2)}`);
       console.log(`   Cost: $${cost.toFixed(2)}, Balance: $${alice.balance.toFixed(2)}`);
     }
   }
@@ -110,7 +114,7 @@ let tickInterval = setInterval(() => {
     console.log('\n💼 Alice Corp creates a Bakery in Copenhagen...');
     const bakery = alice.createFacility('bakery', copenhagen);
     if (bakery) {
-      console.log(`✅ Bakery created: Size ${bakery.size}, Workers ${bakery.workers}, Output ${bakery.getProductionMultiplier().toFixed(2)}x`);
+      console.log(`✅ Bakery created: Size ${bakery.size}, Workers ${bakery.workers}, Output ${bakery.getProductionMultiplier().toFixed(2)}x, Effectivity ${bakery.effectivity.toFixed(2)}`);
       console.log(`   Location: ${bakery.city.name}, Wage: ${bakery.getWagePerTick().toFixed(2)}€/tick`);
     }
   }
@@ -166,7 +170,7 @@ let tickInterval = setInterval(() => {
     console.log('\n💼 Bob Industries creates a Warehouse in Prague...');
     const warehouse = bob.createFacility('warehouse', prague);
     if (warehouse) {
-      console.log(`✅ Warehouse created: Size ${warehouse.size}, Workers ${warehouse.workers} (baseline)`);
+      console.log(`✅ Warehouse created: Size ${warehouse.size}, Workers ${warehouse.workers} (baseline), Effectivity ${warehouse.effectivity.toFixed(2)}`);
       console.log(`   Location: ${warehouse.city.name}, Wage: ${warehouse.getWagePerTick().toFixed(2)}€/tick`);
     }
   }
@@ -221,7 +225,7 @@ let tickInterval = setInterval(() => {
     alice.facilities.forEach((facility, i) => {
       console.log(`${facility.name}:`);
       console.log(`  Location: ${facility.city.name}, ${facility.city.country}`);
-      console.log(`  Size: ${facility.size} | Workers: ${facility.workers} | Output: ${facility.getProductionMultiplier().toFixed(2)}x`);
+      console.log(`  Size: ${facility.size} | Workers: ${facility.workers} | Output: ${facility.getProductionMultiplier().toFixed(2)}x | Effectivity: ${facility.effectivity.toFixed(2)}`);
       console.log(`  Wage: ${facility.getWagePerTick().toFixed(2)}€/tick`);
       if (i < alice.facilities.length - 1) console.log('');
     });

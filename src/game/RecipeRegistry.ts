@@ -11,22 +11,22 @@ export class RecipeRegistry {
     this.register(new Recipe(
       'Grow Grain',
       [], // No inputs
-      [{ resource: 'grain', amount: 1 }],
+      [{ resource: 'grain', amount: 10 }],
       2 // Takes 2 ticks
     ));
 
     // Mill recipes
     this.register(new Recipe(
       'Make Flour',
-      [{ resource: 'grain', amount: 1 }],
-      [{ resource: 'flour', amount: 1 }],
+      [{ resource: 'grain', amount: 2 }],
+      [{ resource: 'flour', amount: 10 }],
       1 // Takes 1 tick
     ));
 
     // Bakery recipes
     this.register(new Recipe(
       'Bake Bread',
-      [{ resource: 'flour', amount: 1 }],
+      [{ resource: 'flour', amount: 20 }],
       [{ resource: 'bread', amount: 1 }],
       1 // Takes 1 tick
     ));

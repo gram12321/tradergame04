@@ -46,6 +46,10 @@ export class Company {
     // Deduct cost and create facility
     this.balance -= definition.cost;
     const facility = new Facility(type, this.id, facilityName, city);
+    
+    // Initialize cached capacity for the facility
+    facility.updateInventoryCapacityForTick();
+    
     this.facilities.push(facility);
 
     // Set default recipe if one exists
@@ -91,7 +95,7 @@ export class Company {
    * Adjust worker count for a facility
    * @param facility The facility to adjust workers for
    * @param workerCount New worker count
-   * @returns true if successful, false if failed
+   * @returns true if successful, false if failed (insufficient balance or out of bounds)
    */
   setFacilityWorkers(facility: Facility, workerCount: number): boolean {
     // Verify facility belongs to this company
@@ -99,7 +103,26 @@ export class Company {
       return false;
     }
 
-    return facility.setWorkerCount(workerCount);
+    // Calculate hiring/firing cost before making the change
+    const workerChange = Math.abs(workerCount - facility.workers);
+    const baseWage = 1.0;
+    const hiringCost = 4 * baseWage * facility.city.wealth * workerChange;
+
+    // Check if company has enough balance
+    if (this.balance < hiringCost) {
+      return false;
+    }
+
+    // Attempt to set worker count
+    const success = facility.setWorkerCount(workerCount);
+    
+    if (success) {
+      // Deduct the hiring/firing cost
+      this.balance -= hiringCost;
+      return true;
+    }
+
+    return false;
   }
 
   /**
