@@ -21,10 +21,9 @@ export class Company {
    * Create a new facility
    * @param type The facility type (e.g., 'farm', 'mill', 'bakery', 'warehouse')
    * @param city The city where the facility is located
-   * @param size The size of the facility (default 1)
    * @returns The created facility, or null if failed
    */
-  createFacility(type: string, city: City, size: number = 1): Facility | null {
+  createFacility(type: string, city: City): Facility | null {
     const definition = FacilityRegistry.get(type);
     
     // Check if facility type exists
@@ -46,7 +45,7 @@ export class Company {
 
     // Deduct cost and create facility
     this.balance -= definition.cost;
-    const facility = new Facility(type, this.id, facilityName, city, size);
+    const facility = new Facility(type, this.id, facilityName, city);
     this.facilities.push(facility);
 
     // Set default recipe if one exists
@@ -86,6 +85,21 @@ export class Company {
     }
 
     return false;
+  }
+
+  /**
+   * Adjust worker count for a facility
+   * @param facility The facility to adjust workers for
+   * @param workerCount New worker count
+   * @returns true if successful, false if failed
+   */
+  setFacilityWorkers(facility: Facility, workerCount: number): boolean {
+    // Verify facility belongs to this company
+    if (facility.ownerId !== this.id) {
+      return false;
+    }
+
+    return facility.setWorkerCount(workerCount);
   }
 
   /**

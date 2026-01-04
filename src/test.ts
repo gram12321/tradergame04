@@ -58,7 +58,7 @@ let tickInterval = setInterval(() => {
   // Alice takes actions at specific ticks (BEFORE processing)
   if (tick === 0) {
     console.log('\n💼 Alice Corp creates a Farm (size 1) in Copenhagen...');
-    const farm = alice.createFacility('farm', copenhagen, 1);
+    const farm = alice.createFacility('farm', copenhagen);
     if (farm) {
       console.log(`✅ Farm created: Size ${farm.size}, Workers ${farm.workers}, Output ${farm.getProductionMultiplier().toFixed(2)}x`);
       console.log(`   Location: ${farm.city.name}, ${farm.city.country}`);
@@ -68,8 +68,8 @@ let tickInterval = setInterval(() => {
   }
   
   if (tick === 3) {
-    console.log('\n💼 Alice Corp creates a Mill (size 2) in Prague...');
-    const mill = alice.createFacility('mill', prague, 2);
+    console.log('\n💼 Alice Corp creates a Mill in Prague...');
+    const mill = alice.createFacility('mill', prague);
     if (mill) {
       console.log(`✅ Mill created: Size ${mill.size}, Workers ${mill.workers}, Output ${mill.getProductionMultiplier().toFixed(2)}x`);
       console.log(`   Location: ${mill.city.name}, ${mill.city.country}`);
@@ -163,8 +163,8 @@ let tickInterval = setInterval(() => {
   
   // Bob creates a warehouse at tick 22
   if (tick === 22) {
-    console.log('\n💼 Bob Industries creates a Warehouse (size 1) in Prague...');
-    const warehouse = bob.createFacility('warehouse', prague, 1);
+    console.log('\n💼 Bob Industries creates a Warehouse in Prague...');
+    const warehouse = bob.createFacility('warehouse', prague);
     if (warehouse) {
       console.log(`✅ Warehouse created: Size ${warehouse.size}, Workers ${warehouse.workers} (baseline)`);
       console.log(`   Location: ${warehouse.city.name}, Wage: ${warehouse.getWagePerTick().toFixed(2)}€/tick`);

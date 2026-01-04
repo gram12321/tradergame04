@@ -22,10 +22,10 @@ export class Facility {
   recipe: Recipe | null;
   productionProgress: number;
   isProducing: boolean;
-  size: number; // Size of the facility (default 1)
-  workers: number; // Workers required (calculated from size)
+  size: number; // Size of the facility (always starts at 1)
+  workers: number; // Current worker count
 
-  constructor(type: string, ownerId: string, name: string, city: City, size: number = 1) {
+  constructor(type: string, ownerId: string, name: string, city: City) {
     this.id = Math.random().toString(36).substring(7);
     this.name = name;
     this.type = type;
@@ -36,15 +36,15 @@ export class Facility {
     this.recipe = null;
     this.productionProgress = 0;
     this.isProducing = false;
-    this.size = Math.max(1, size);
-    this.workers = this.calculateWorkers();
+    this.size = 1;
+    this.workers = this.calculateRequiredWorkers();
   }
 
   /**
-   * Calculate workers required based on size (exponential growth)
+   * Calculate required workers based on size (exponential growth)
    * Formula: workerMultiplier * size^1.2
    */
-  private calculateWorkers(): number {
+  calculateRequiredWorkers(): number {
     const workerMultiplier = FacilityRegistry.get(this.type)?.workerMultiplier || 1.0;
     return Math.ceil(workerMultiplier * Math.pow(this.size, 1.2));
   }
@@ -68,6 +68,23 @@ export class Facility {
   }
 
   /**
+   * Set worker count to a specific value
+   * @param count Desired worker count (0 to requiredWorkers * 10)
+   * @returns true if successful, false if out of bounds
+   */
+  setWorkerCount(count: number): boolean {
+    const requiredWorkers = this.calculateRequiredWorkers();
+    const maxWorkers = requiredWorkers * 10;
+    
+    if (count < 0 || count > maxWorkers) {
+      return false;
+    }
+    
+    this.workers = count;
+    return true;
+  }
+
+  /**
    * Calculate the cost to upgrade to the next size level
    * Formula: baseCost * size^2 (exponential growth)
    */
@@ -88,7 +105,11 @@ export class Facility {
     if (cost <= 0) return null;
     
     this.size++;
-    this.workers = this.calculateWorkers();
+    const requiredWorkers = this.calculateRequiredWorkers();
+    // Keep current workers if still within bounds, otherwise set to required
+    if (this.workers > requiredWorkers * 10) {
+      this.workers = requiredWorkers;
+    }
     return cost;
   }
 
