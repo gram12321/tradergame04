@@ -26,6 +26,7 @@ export class Facility {
   workers: number; // Current worker count
   effectivity: number; // Calculated value 0-1, starts at 1
   cachedMaxInventoryCapacity: number; // Cached capacity calculated once per tick (based on previous tick's effectivity)
+  officeEffectivityMultiplier: number; // Hard cap from controlling office: 0 if no office, office's effectivity (0-1) otherwise
 
   constructor(type: string, ownerId: string, name: string, city: City) {
     this.id = Math.random().toString(36).substring(7);
@@ -42,6 +43,7 @@ export class Facility {
     this.workers = this.calculateRequiredWorkers();
     this.effectivity = 1;
     this.cachedMaxInventoryCapacity = 0; // Will be set on first tick
+    this.officeEffectivityMultiplier = 1; // Default to 1 (office exists or is office itself)
   }
 
   /**
@@ -58,7 +60,10 @@ export class Facility {
    * Formula: 
    * - Worker part: Below required (ratio^2), At/Above required (1 + sqrt(ratio-1))
    * - Inventory part: Applied as multiplier (1.0 if under capacity, reduces if over)
-   * - Final: workerEffectivity * overflowPenalty
+   * - Office part: Hard cap from controlling office (0 if no office, office's effectivity 0-1 otherwise)
+   * - Final: workerEffectivity * overflowPenalty * officeEffectivityMultiplier
+   * 
+   * For offices: officeEffectivityMultiplier is always 1 to avoid circular dependency
    */
   calculateEffectivity(): void {
     const requiredWorkers = this.calculateRequiredWorkers();
@@ -75,7 +80,9 @@ export class Facility {
     
     // Apply inventory overflow penalty
     const overflowPenalty = this.getOverflowPenalty();
-    this.effectivity = workerEffectivity * overflowPenalty;
+    
+    // Apply office multiplier (0 if no office in country, 1 otherwise)
+    this.effectivity = workerEffectivity * overflowPenalty * this.officeEffectivityMultiplier;
   }
 
   /**
@@ -223,6 +230,21 @@ export class Facility {
   }
 
   /**
+   * Calculate the refund from degrading to the previous size level
+   * Formula: 50% of the cost that was paid to upgrade to current size
+   * Returns 0 if already at size 1
+   */
+  getDegradeCost(): number {
+    if (this.size <= 1) return 0;
+    const definition = FacilityRegistry.get(this.type);
+    if (!definition) return 0;
+    const baseCost = definition.cost;
+    // 50% refund of what was paid to reach current size
+    const upgradeCost = Math.ceil(baseCost * Math.pow(this.size, 2));
+    return Math.ceil(upgradeCost * 0.5);
+  }
+
+  /**
    * Upgrade the facility to the next size level
    * @returns The cost paid, or null if upgrade failed
    */
@@ -238,6 +260,24 @@ export class Facility {
     }
     this.calculateEffectivity();
     return cost;
+  }
+
+  /**
+   * Degrade the facility to the previous size level
+   * @returns The refund received (50% of upgrade cost), or null if already at size 1
+   */
+  degradeSize(): number | null {
+    if (this.size <= 1) return null;
+    
+    const refund = this.getDegradeCost();
+    this.size--;
+    const requiredWorkers = this.calculateRequiredWorkers();
+    // Adjust workers if now over the limit
+    if (this.workers > requiredWorkers * 10) {
+      this.workers = requiredWorkers;
+    }
+    this.calculateEffectivity();
+    return refund;
   }
 
   /**

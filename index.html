@@ -281,6 +281,7 @@
             <div class="control-row">
                 <label>Facility Type:</label>
                 <select id="currentFacilityType">
+                    <option value="office">Office ($2500)</option>
                     <option value="farm">Farm ($1000)</option>
                     <option value="mill">Mill ($1500)</option>
                     <option value="bakery">Bakery ($2000)</option>
@@ -300,9 +301,21 @@
                 <button onclick="toggleForm('currentSellOffer')">Create Sell Offer</button>
                 <button onclick="toggleForm('currentContract')">Create Buy Contract</button>
                 <button onclick="toggleForm('currentUpgrade')">Upgrade Facility</button>
+                <button onclick="toggleForm('currentDegrade')">Degrade Facility</button>
                 <button onclick="toggleForm('currentWorkers')">Hire/Fire Workers</button>
                 <button onclick="toggleForm('currentEdit')">Edit Offer/Contract</button>
                 <button onclick="toggleForm('currentCancel')">Cancel Offer/Contract</button>
+                <button onclick="toggleForm('currentDestroy')">Destroy Facility</button>
+            </div>
+            
+            <div id="currentDestroy" class="action-form">
+                <div class="form-row">
+                    <label>Select Facility to Destroy:</label>
+                    <select id="currentDestroyFacility">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <button onclick="destroyFacility('current')">⚠️ Destroy Facility (Permanent)</button>
             </div>
             
             <div id="currentTransfer" class="action-form">
@@ -334,6 +347,16 @@
                 <div id="currentUpgradeInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
                 <button onclick="executeUpgrade()">Upgrade Facility</button>
                 <button onclick="toggleForm('currentUpgrade')" class="secondary">Cancel</button>
+            </div>
+            
+            <div id="currentDegrade" class="action-form">
+                <div class="form-row">
+                    <label>Select Facility:</label>
+                    <select id="currentDegradeFacility"></select>
+                </div>
+                <div id="currentDegradeInfo" style="margin: 10px 0; color: #ce9178; font-size: 12px;"></div>
+                <button onclick="executeDegrade()">⚠️ Degrade Facility (Get 50% Refund)</button>
+                <button onclick="toggleForm('currentDegrade')" class="secondary">Cancel</button>
             </div>
             
             <div id="currentWorkers" class="action-form">
@@ -543,6 +566,8 @@
                 updateResourceDropdowns('currentTransferResource');
             } else if (formId.includes('Upgrade')) {
                 updateUpgradeFacilityDropdown('current', company);
+            } else if (formId.includes('Degrade')) {
+                updateDegradeFacilityDropdown('current', company);
             } else if (formId.includes('Workers')) {
                 updateWorkersFacilityDropdown('current', company);
             } else if (formId.includes('SellOffer')) {
@@ -555,6 +580,8 @@
                 updateEditOptions('current');
             } else if (formId.includes('Cancel')) {
                 updateCancelOptions('current');
+            } else if (formId.includes('Destroy')) {
+                updateDestroyFacilityDropdown('current', company);
             }
         }
 
@@ -616,7 +643,64 @@
                     const currentRequired = facility.calculateRequiredWorkers();
                     const newRequired = Math.ceil(FacilityRegistry.get(facility.type).workerMultiplier * Math.pow(newSize, 1.2));
                     const newMultiplier = Math.sqrt(newSize);
+
+        function updateDestroyFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}DestroyFacility`);
+            select.innerHTML = '';
+            
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+            
+            company.facilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${facility.name} (${facility.type}, ${facility.city.name})`;
+                select.appendChild(option);
+            });
+        }
                     infoDiv.textContent = `Upgrade to Size ${newSize}: Cost $${cost.toFixed(2)} | Required Workers ${currentRequired}→${newRequired} | Output ${facility.getProductionMultiplier().toFixed(2)}x→${newMultiplier.toFixed(2)}x`;
+                }
+            };
+            
+            // Trigger initial display
+            select.onchange();
+        }
+
+        function updateDegradeFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}DegradeFacility`);
+            const infoDiv = document.getElementById(`${prefix}DegradeInfo`);
+            select.innerHTML = '';
+            infoDiv.textContent = '';
+            
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+            
+            company.facilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${facility.name} (Size ${facility.size})`;
+                select.appendChild(option);
+            });
+            
+            // Add change listener to show degrade info
+            select.onchange = function() {
+                const index = parseInt(select.value);
+                const facility = company.facilities[index];
+                if (facility) {
+                    if (facility.size <= 1) {
+                        infoDiv.textContent = `Cannot degrade: Already at minimum size (1)`;
+                    } else {
+                        const refund = facility.getDegradeCost();
+                        const newSize = facility.size - 1;
+                        const currentRequired = facility.calculateRequiredWorkers();
+                        const newRequired = Math.ceil(FacilityRegistry.get(facility.type).workerMultiplier * Math.pow(newSize, 1.2));
+                        const newMultiplier = Math.sqrt(newSize);
+                        infoDiv.textContent = `Degrade to Size ${newSize}: Refund $${refund.toFixed(2)} (50%) | Required Workers ${currentRequired}→${newRequired} | Output ${facility.getProductionMultiplier().toFixed(2)}x→${newMultiplier.toFixed(2)}x`;
+                    }
                 }
             };
             
@@ -855,12 +939,17 @@
                     .join('<br>          ');
                 const inventoryStr = inventoryItems || 'empty';
                 
-                // Get inventory capacity info
-                const maxCapacity = facility.getMaxInventoryCapacity();
-                const currentInventory = facility.getTotalInventory();
-                const inventoryPercent = Math.round(facility.getInventoryPercentage() * 100);
-                const overCapacityIndicator = facility.isInventoryOverCapacity() ? ' ⚠️ OVER CAPACITY' : '';
-                const capacityStr = `Capacity: ${currentInventory.toFixed(1)}/${maxCapacity} weight (${inventoryPercent}%)${overCapacityIndicator}`;
+                // Get inventory capacity info (offices don't use inventory)
+                let capacityStr = '';
+                if (facility.type === 'office') {
+                    capacityStr = 'Capacity: N/A (Administrative facility)';
+                } else {
+                    const maxCapacity = facility.getMaxInventoryCapacity();
+                    const currentInventory = facility.getTotalInventory();
+                    const inventoryPercent = Math.round(facility.getInventoryPercentage() * 100);
+                    const overCapacityIndicator = facility.isInventoryOverCapacity() ? ' ⚠️ OVER CAPACITY' : '';
+                    capacityStr = `Capacity: ${currentInventory.toFixed(1)}/${maxCapacity} weight (${inventoryPercent}%)${overCapacityIndicator}`;
+                }
                 
                 // Get contracts info
                 const sellingContracts = facility.getSellingContracts();
@@ -1046,6 +1135,18 @@
                 return;
             }
             
+            // Check if office is required but missing
+            if (facilityType !== 'office' && !company.hasOfficeInCountry(country)) {
+                addMessage(`❌ Cannot build ${facilityType} in ${country}. An Office is required in this country first!`, 'error');
+                return;
+            }
+            
+            // Check if trying to build a second office in the same country
+            if (facilityType === 'office' && company.hasOfficeInCountry(country)) {
+                addMessage(`❌ Cannot build Office in ${country}. Only one office per country is allowed!`, 'error');
+                return;
+            }
+            
             const facility = company.createFacility(facilityType, city);
             if (facility) {
                 addMessage(`✅ ${company.name} built a ${facilityType} in ${city.name} (Size ${facility.size}, ${facility.workers} workers, ${facility.getWagePerTick().toFixed(2)}€/tick wage)!`, 'success');
@@ -1107,6 +1208,85 @@
                     toggleForm('currentUpgrade');
                 } else {
                     addMessage(`❌ Upgrade failed. Not enough funds? Need $${cost.toFixed(2)}`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeDegrade = function() {
+            const company = getCurrentCompany();
+            
+            if (company.facilities.length === 0) {
+                addMessage('No facilities to degrade!', 'error');
+                return;
+            }
+
+            const facilityIndex = parseInt(document.getElementById('currentDegradeFacility').value);
+            const facility = company.facilities[facilityIndex];
+            
+            if (facility) {
+                if (facility.size <= 1) {
+                    addMessage(`❌ Cannot degrade ${facility.name}: Already at minimum size (1)`, 'error');
+                    return;
+                }
+
+                const oldSize = facility.size;
+                const oldWorkers = facility.workers;
+                const refund = facility.getDegradeCost();
+                
+                const success = company.degradeFacility(facility);
+                if (success) {
+                    addMessage(`📉 Degraded ${facility.name}! Size ${oldSize}→${facility.size}, Workers ${oldWorkers}→${facility.workers}, Refund: $${refund.toFixed(2)}`, 'info');
+                    toggleForm('currentDegrade');
+                } else {
+                    addMessage(`❌ Degrade failed`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.destroyFacility = function(prefix) {
+            const company = getCurrentCompany();
+            
+            if (company.facilities.length === 0) {
+                addMessage('No facilities to destroy!', 'error');
+                return;
+            }
+
+            const selectId = prefix + 'DestroyFacility';
+            const facilityIndex = parseInt(document.getElementById(selectId).value);
+            const facility = company.facilities[facilityIndex];
+            
+            if (facility) {
+                const facilityName = facility.name;
+                const facilityType = facility.type;
+                const country = facility.city.country;
+                
+                // Warning for destroying offices
+                if (facilityType === 'office') {
+                    const otherOfficesInCountry = company.facilities.filter(
+                        f => f.type === 'office' && f.city.country === country && f.id !== facility.id
+                    ).length;
+                    
+                    if (otherOfficesInCountry === 0) {
+                        const facilitiesInCountry = company.facilities.filter(
+                            f => f.city.country === country && f.id !== facility.id
+                        ).length;
+                        
+                        if (facilitiesInCountry > 0 && !confirm(
+                            `⚠️ WARNING: Destroying this office will cause ${facilitiesInCountry} other facilities in ${country} to have 0% effectivity! Continue?`
+                        )) {
+                            return;
+                        }
+                    }
+                }
+                
+                const success = company.destroyFacility(facility);
+                if (success) {
+                    addMessage(`🗑️ Destroyed ${facilityName}`, 'info');
+                    toggleForm(prefix + 'Destroy');
+                } else {
+                    addMessage(`❌ Failed to destroy facility`, 'error');
                 }
                 updateDisplay();
             }

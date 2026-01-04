@@ -68,6 +68,18 @@ export class FacilityRegistry {
       defaultRecipe: null,
       description: 'Storage facility for goods, cannot produce'
     });
+
+    // Office - administrative facility, required for operating in a country
+    this.register({
+      type: 'office',
+      name: 'Office',
+      cost: 2500,
+      workerMultiplier: 2.0,
+      capacityMultiplier: 0.0, // No inventory capacity
+      allowedRecipes: [], // No recipes allowed
+      defaultRecipe: null,
+      description: 'Administrative office required to operate facilities in a country'
+    });
   }
 
   /**

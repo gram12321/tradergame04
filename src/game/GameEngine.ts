@@ -26,7 +26,12 @@ export class GameEngine {
    * This processes wages, then production, then contracts, then updates sell offers, then advances to the next tick.
    */
   processTick(): void {
-    // First, process wages for all companies
+    // First, update office effectivity multipliers for all facilities
+    this.companies.forEach(company => {
+      company.updateOfficeEffectivity();
+    });
+
+    // Then, process wages for all companies
     this.companies.forEach(company => {
       company.processWages();
     });

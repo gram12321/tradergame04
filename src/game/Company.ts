@@ -36,6 +36,16 @@ export class Company {
       return null;
     }
 
+    // Office requirement: Can't build non-office facilities without an office in the country
+    if (type !== 'office' && !this.hasOfficeInCountry(city.country)) {
+      return null;
+    }
+
+    // Office restriction: Only one office allowed per country per company
+    if (type === 'office' && this.hasOfficeInCountry(city.country)) {
+      return null;
+    }
+
     // Count existing facilities of this type
     const typeCount = this.facilities.filter(f => f.type === type).length;
     const facilityNumber = typeCount + 1;
@@ -64,6 +74,74 @@ export class Company {
   }
 
   /**
+   * Check if company has an office in the specified country
+   * @param country The country name to check
+   * @returns true if company has at least one office in the country
+   */
+  hasOfficeInCountry(country: string): boolean {
+    return this.facilities.some(f => f.type === 'office' && f.city.country === country);
+  }
+
+  /**
+   * Destroy/remove a facility from the company
+   * @param facility The facility to destroy
+   * @returns true if destroyed successfully, false if facility not found
+   */
+  destroyFacility(facility: Facility): boolean {
+    const index = this.facilities.findIndex(f => f.id === facility.id);
+    if (index === -1) {
+      return false;
+    }
+
+    // If destroying an office, mark all facilities in that country as having no office
+    if (facility.type === 'office') {
+      const country = facility.city.country;
+      // Check if this is the last office in the country
+      const remainingOffices = this.facilities.filter(
+        f => f.type === 'office' && f.city.country === country && f.id !== facility.id
+      );
+      
+      // If no offices remain, all facilities in that country lose effectivity
+      if (remainingOffices.length === 0) {
+        this.facilities
+          .filter(f => f.city.country === country && f.id !== facility.id)
+          .forEach(f => f.effectivity = 0);
+      }
+    }
+
+    // Remove the facility
+    this.facilities.splice(index, 1);
+    return true;
+  }
+
+  /**
+   * Update office effectivity multipliers for all facilities
+   * Non-office facilities get a hard cap equal to their controlling office's effectivity (0-1)
+   * Facilities in countries without offices get 0 effectivity multiplier
+   * Offices themselves always have multiplier = 1 to avoid circular dependency
+   */
+  updateOfficeEffectivity(): void {
+    // Get all countries where we have facilities
+    const countries = new Set(this.facilities.map(f => f.city.country));
+    
+    countries.forEach(country => {
+      // Find the office in this country (should only be one per country)
+      const office = this.facilities.find(f => f.type === 'office' && f.city.country === country);
+      
+      // Get the office's effectivity as a hard cap (0-1)
+      const officeEffectivityCap = office ? Math.min(1, Math.max(0, office.effectivity)) : 0;
+      
+      // Update all non-office facilities in this country
+      this.facilities
+        .filter(f => f.city.country === country && f.type !== 'office')
+        .forEach(f => {
+          f.officeEffectivityMultiplier = officeEffectivityCap;
+          f.calculateEffectivity(); // Recalculate with new multiplier
+        });
+    });
+  }
+
+  /**
    * Upgrade a facility's size
    * @param facility The facility to upgrade
    * @returns true if upgrade was successful, false if failed (not enough balance)
@@ -85,6 +163,31 @@ export class Company {
     const actualCost = facility.upgradeSize();
     if (actualCost !== null) {
       this.balance -= actualCost;
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Degrade a facility's size
+   * @param facility The facility to degrade
+   * @returns true if degrade was successful (gives 50% refund), false if already at size 1
+   */
+  degradeFacility(facility: Facility): boolean {
+    // Verify facility belongs to this company
+    if (facility.ownerId !== this.id) {
+      return false;
+    }
+
+    if (facility.size <= 1) {
+      return false; // Can't degrade size 1
+    }
+
+    // Perform degrade and get refund
+    const refund = facility.degradeSize();
+    if (refund !== null) {
+      this.balance += refund;
       return true;
     }
 
