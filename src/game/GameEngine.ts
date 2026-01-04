@@ -23,10 +23,15 @@ export class GameEngine {
 
   /**
    * Process one game tick for all companies and their facilities.
-   * This processes production, then contracts, then updates sell offers, then advances to the next tick.
+   * This processes wages, then production, then contracts, then updates sell offers, then advances to the next tick.
    */
   processTick(): void {
-    // First, process all production for all facilities
+    // First, process wages for all companies
+    this.companies.forEach(company => {
+      company.processWages();
+    });
+    
+    // Then, process all production for all facilities
     this.companies.forEach(company => {
       company.facilities.forEach(facility => {
         facility.processTick();

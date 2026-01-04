@@ -2,6 +2,7 @@ import { Facility } from './Facility.js';
 import { Market, SellOffer, Contract } from './Market.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
 import { RecipeRegistry } from './RecipeRegistry.js';
+import { City } from './City.js';
 
 export class Company {
   id: string;
@@ -19,9 +20,11 @@ export class Company {
   /**
    * Create a new facility
    * @param type The facility type (e.g., 'farm', 'mill', 'bakery', 'warehouse')
+   * @param city The city where the facility is located
+   * @param size The size of the facility (default 1)
    * @returns The created facility, or null if failed
    */
-  createFacility(type: string): Facility | null {
+  createFacility(type: string, city: City, size: number = 1): Facility | null {
     const definition = FacilityRegistry.get(type);
     
     // Check if facility type exists
@@ -43,7 +46,7 @@ export class Company {
 
     // Deduct cost and create facility
     this.balance -= definition.cost;
-    const facility = new Facility(type, this.id, facilityName);
+    const facility = new Facility(type, this.id, facilityName, city, size);
     this.facilities.push(facility);
 
     // Set default recipe if one exists
@@ -55,6 +58,34 @@ export class Company {
     }
 
     return facility;
+  }
+
+  /**
+   * Upgrade a facility's size
+   * @param facility The facility to upgrade
+   * @returns true if upgrade was successful, false if failed (not enough balance)
+   */
+  upgradeFacility(facility: Facility): boolean {
+    // Verify facility belongs to this company
+    if (facility.ownerId !== this.id) {
+      return false;
+    }
+
+    const cost = facility.getUpgradeCost();
+    
+    // Check if company has enough balance
+    if (this.balance < cost) {
+      return false;
+    }
+
+    // Perform upgrade
+    const actualCost = facility.upgradeSize();
+    if (actualCost !== null) {
+      this.balance -= actualCost;
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -78,6 +109,28 @@ export class Company {
     }
 
     return false;
+  }
+
+  /**
+   * Process wage payments for all facilities
+   * Called each tick to deduct wages from company balance
+   * @returns Total wages paid this tick
+   */
+  processWages(): number {
+    let totalWages = 0;
+    this.facilities.forEach(facility => {
+      const wage = facility.getWagePerTick();
+      totalWages += wage;
+    });
+    this.balance -= totalWages;
+    return totalWages;
+  }
+
+  /**
+   * Get total wage expenses per tick
+   */
+  getTotalWagesPerTick(): number {
+    return this.facilities.reduce((sum, facility) => sum + facility.getWagePerTick(), 0);
   }
 
   /**

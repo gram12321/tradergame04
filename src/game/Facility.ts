@@ -1,5 +1,6 @@
 import { Recipe } from './Recipe.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
+import { City } from './City.js';
 import type { Market } from './Market.js';
 
 export interface ContractInfo {
@@ -15,22 +16,80 @@ export class Facility {
   name: string;
   type: string;
   ownerId: string;
+  city: City; // City where this facility is located
   inventory: Map<string, number>;
   contracts: Map<string, ContractInfo>; // contractId -> contract info
   recipe: Recipe | null;
   productionProgress: number;
   isProducing: boolean;
+  size: number; // Size of the facility (default 1)
+  workers: number; // Workers required (calculated from size)
 
-  constructor(type: string, ownerId: string, name: string) {
+  constructor(type: string, ownerId: string, name: string, city: City, size: number = 1) {
     this.id = Math.random().toString(36).substring(7);
     this.name = name;
     this.type = type;
     this.ownerId = ownerId;
+    this.city = city;
     this.inventory = new Map();
     this.contracts = new Map();
     this.recipe = null;
     this.productionProgress = 0;
     this.isProducing = false;
+    this.size = Math.max(1, size);
+    this.workers = this.calculateWorkers();
+  }
+
+  /**
+   * Calculate workers required based on size (exponential growth)
+   * Formula: workerMultiplier * size^1.2
+   */
+  private calculateWorkers(): number {
+    const workerMultiplier = FacilityRegistry.get(this.type)?.workerMultiplier || 1.0;
+    return Math.ceil(workerMultiplier * Math.pow(this.size, 1.2));
+  }
+
+  /**
+   * Get production multiplier based on size (diminishing returns)
+   * Formula: sqrt(size) - gives diminishing returns
+   * size=1: 1.0x, size=4: 2.0x, size=9: 3.0x, size=16: 4.0x
+   */
+  getProductionMultiplier(): number {
+    return Math.sqrt(this.size);
+  }
+
+  /**
+   * Calculate wage cost per tick
+   * Formula: workers * baseWage(1€) * city.wealth
+   */
+  getWagePerTick(): number {
+    const baseWage = 1.0; // 1€ per worker
+    return this.workers * baseWage * this.city.wealth;
+  }
+
+  /**
+   * Calculate the cost to upgrade to the next size level
+   * Formula: baseCost * size^2 (exponential growth)
+   */
+  getUpgradeCost(): number {
+    const definition = FacilityRegistry.get(this.type);
+    if (!definition) return 0;
+    const baseCost = definition.cost;
+    // Cost to upgrade from current size to next size
+    return Math.ceil(baseCost * Math.pow(this.size + 1, 2));
+  }
+
+  /**
+   * Upgrade the facility to the next size level
+   * @returns The cost paid, or null if upgrade failed
+   */
+  upgradeSize(): number | null {
+    const cost = this.getUpgradeCost();
+    if (cost <= 0) return null;
+    
+    this.size++;
+    this.workers = this.calculateWorkers();
+    return cost;
   }
 
   /**
@@ -147,8 +206,9 @@ export class Facility {
     const production = new Map<string, number>();
     if (!this.recipe) return production;
 
+    const multiplier = this.getProductionMultiplier();
     this.recipe.outputs.forEach(output => {
-      const ratePerTick = output.amount / this.recipe!.ticksRequired;
+      const ratePerTick = (output.amount * multiplier) / this.recipe!.ticksRequired;
       production.set(output.resource, ratePerTick);
     });
     return production;
@@ -156,13 +216,15 @@ export class Facility {
 
   /**
    * Get consumption rate per tick (what this facility consumes for production)
+   * Scales with size using the same multiplier as output
    */
   getConsumptionRate(): Map<string, number> {
     const consumption = new Map<string, number>();
     if (!this.recipe) return consumption;
 
+    const multiplier = this.getProductionMultiplier();
     this.recipe.inputs.forEach(input => {
-      const ratePerTick = input.amount / this.recipe!.ticksRequired;
+      const ratePerTick = (input.amount * multiplier) / this.recipe!.ticksRequired;
       consumption.set(input.resource, ratePerTick);
     });
     return consumption;
@@ -266,14 +328,15 @@ export class Facility {
   private completeProduction(): void {
     if (!this.recipe) return;
 
-    // Consume inputs
+    // Consume inputs (with size multiplier)
+    const multiplier = this.getProductionMultiplier();
     this.recipe.inputs.forEach(input => {
-      this.removeResource(input.resource, input.amount);
+      this.removeResource(input.resource, input.amount * multiplier);
     });
 
-    // Produce outputs
+    // Produce outputs (with size multiplier)
     this.recipe.outputs.forEach(output => {
-      this.addResource(output.resource, output.amount);
+      this.addResource(output.resource, output.amount * multiplier);
     });
 
     // Reset production state

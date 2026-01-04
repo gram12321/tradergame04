@@ -7,6 +7,7 @@ export interface FacilityDefinition {
   type: string;
   name: string;
   cost: number;
+  workerMultiplier: number; // Worker multiplier (warehouse = 1.0 baseline)
   allowedRecipes: string[]; // Recipe names that can be assigned to this facility
   defaultRecipe: string | null; // Default recipe assigned when facility is built
   description: string;
@@ -24,6 +25,7 @@ export class FacilityRegistry {
       type: 'farm',
       name: 'Farm',
       cost: 1000,
+      workerMultiplier: 3.0,
       allowedRecipes: ['Grow Grain'],
       defaultRecipe: 'Grow Grain',
       description: 'Produces grain from the land'
@@ -34,6 +36,7 @@ export class FacilityRegistry {
       type: 'mill',
       name: 'Mill',
       cost: 1500,
+      workerMultiplier: 2.5,
       allowedRecipes: ['Make Flour'],
       defaultRecipe: 'Make Flour',
       description: 'Processes grain into flour'
@@ -44,6 +47,7 @@ export class FacilityRegistry {
       type: 'bakery',
       name: 'Bakery',
       cost: 2000,
+      workerMultiplier: 2.0,
       allowedRecipes: ['Bake Bread'],
       defaultRecipe: 'Bake Bread',
       description: 'Bakes flour into bread'
@@ -54,6 +58,7 @@ export class FacilityRegistry {
       type: 'warehouse',
       name: 'Warehouse',
       cost: 500,
+      workerMultiplier: 1.0,
       allowedRecipes: [], // No recipes allowed
       defaultRecipe: null,
       description: 'Storage facility for goods, cannot produce'
