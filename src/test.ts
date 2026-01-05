@@ -3,6 +3,9 @@ import { FacilityRegistry } from './game/FacilityRegistry.js';
 import { CityRegistry } from './game/CityRegistry.js';
 import { ResourceRegistry } from './game/ResourceRegistry.js';
 import { RecipeRegistry } from './game/RecipeRegistry.js';
+import { ProductionFacility } from './game/ProductionFacility.js';
+import { StorageFacility } from './game/StorageFacility.js';
+import { Office } from './game/Office.js';
 
 // Create game instance
 const game = new GameEngine();
@@ -67,14 +70,14 @@ assert(bobOffice !== null, 'Different company can create office in same city');
 console.log('\n=== OFFICE EFFECTIVITY AS HARD CAP TEST ===\n');
 
 // Create facilities for testing office hard cap
-let farm = alice.createFacility('farm', copenhagen);
-let mill = alice.createFacility('mill', copenhagen);
+let farm = alice.createFacility('farm', copenhagen) as ProductionFacility | null;
+let mill = alice.createFacility('mill', copenhagen) as ProductionFacility | null;
 assert(farm !== null, 'Farm created in Copenhagen');
 assert(mill !== null, 'Mill created in Copenhagen');
 
 // Get the office
-const aliceOffice = alice.facilities.find(f => f.type === 'office' && f.city.country === 'Denmark');
-assert(aliceOffice !== null, 'Alice has office in Denmark');
+const aliceOffice = alice.facilities.find(f => f.type === 'office' && f.city.country === 'Denmark') as Office | undefined;
+assert(aliceOffice !== undefined, 'Alice has office in Denmark');
 
 // Manually set office workers to test effectivity propagation
 if (aliceOffice && farm && mill) {
@@ -121,7 +124,7 @@ if (farm) {
 console.log('\n=== FACILITY DEGRADE FUNCTIONALITY TEST ===\n');
 
 // Create a facility and upgrade it (use Prague - already has an office)
-let testFarm = alice.createFacility('farm', prague);
+let testFarm = alice.createFacility('farm', prague) as ProductionFacility | null;
 if (testFarm) {
   const originalSize = testFarm.size;
   const upgradeCost = testFarm.getUpgradeCost();
@@ -191,7 +194,7 @@ console.log('\n=== FACILITY WITHOUT OFFICE TEST ===\n');
 
 // Create a company without an office
 const charlie = game.addCompany('charlie', 'Charlie Industries');
-const farmWithoutOffice = charlie.createFacility('farm', prague);
+const farmWithoutOffice = charlie.createFacility('farm', prague) as ProductionFacility | null;
 
 assert(
   farmWithoutOffice === null,
@@ -199,18 +202,18 @@ assert(
 );
 
 // Create office first, then farm
-const charlieOffice = charlie.createFacility('office', prague);
+const charlieOffice = charlie.createFacility('office', prague) as Office | null;
 assert(charlieOffice !== null, 'Charlie created office in Prague');
 
-const charliesFarm = charlie.createFacility('farm', prague);
+const charliesFarm = charlie.createFacility('farm', prague) as ProductionFacility | null;
 assert(charliesFarm !== null, 'Charlie can now create farm after office exists');
 
 console.log('\n=== WAGE DEDUCTION TEST ===\n');
 
 // Create fresh facilities for wage testing
 const wageTestCompany = game.addCompany('wagetest', 'Wage Test Corp');
-const wageOffice = wageTestCompany.createFacility('office', copenhagen);
-const wageFarm = wageTestCompany.createFacility('farm', copenhagen);
+const wageOffice = wageTestCompany.createFacility('office', copenhagen) as Office | null;
+const wageFarm = wageTestCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
 
 if (wageFarm && wageOffice) {
   const initialBalance = wageTestCompany.balance;
@@ -263,8 +266,8 @@ if (wageFarm) {
 console.log('\n=== UPGRADE/DEGRADE PRODUCTION SCALING TEST ===\n');
 
 const prodTestCompany = game.addCompany('prodtest', 'Production Test Corp');
-const prodOffice = prodTestCompany.createFacility('office', prague);
-const prodFarm = prodTestCompany.createFacility('farm', prague);
+const prodOffice = prodTestCompany.createFacility('office', prague) as Office | null;
+const prodFarm = prodTestCompany.createFacility('farm', prague) as ProductionFacility | null;
 
 if (prodFarm && prodOffice) {
   // Set workers to full staff
@@ -308,8 +311,8 @@ console.log('\n=== PRODUCTION INPUT/OUTPUT TEST ===\n');
 
 // Fresh company for clean production test
 const ioTestCompany = game.addCompany('iotest', 'IO Test Corp');
-const ioOffice = ioTestCompany.createFacility('office', copenhagen);
-const ioFarm = ioTestCompany.createFacility('farm', copenhagen);
+const ioOffice = ioTestCompany.createFacility('office', copenhagen) as Office | null;
+const ioFarm = ioTestCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
 
 if (ioFarm && ioOffice) {
   ioOffice.setWorkerCount(100);
@@ -339,8 +342,8 @@ if (ioFarm && ioOffice) {
 console.log('\n=== PRODUCTION REQUIRES INPUT TEST ===\n');
 
 const millTestCompany = game.addCompany('milltest', 'Mill Test Corp');
-const millOffice = millTestCompany.createFacility('office', prague);
-const testMill = millTestCompany.createFacility('mill', prague);
+const millOffice = millTestCompany.createFacility('office', prague) as Office | null;
+const testMill = millTestCompany.createFacility('mill', prague) as ProductionFacility | null;
 
 if (testMill && millOffice) {
   millOffice.setWorkerCount(100);
@@ -389,7 +392,7 @@ if (ioFarm && testMill) {
   );
   
   // Transfer within same company
-  const ioFarm2 = ioTestCompany.createFacility('farm', prague);
+  const ioFarm2 = ioTestCompany.createFacility('farm', prague) as ProductionFacility | null;
   if (ioFarm2) {
     ioFarm2.addResource('grain', 100);
     const farm2Before = ioFarm2.getResource('grain');
@@ -412,8 +415,8 @@ if (ioFarm && testMill) {
 console.log('\n=== WAREHOUSE CAPACITY TEST ===\n');
 
 const warehouseCompany = game.addCompany('warehouse', 'Warehouse Corp');
-const whOffice = warehouseCompany.createFacility('office', copenhagen);
-const warehouse = warehouseCompany.createFacility('warehouse', copenhagen);
+const whOffice = warehouseCompany.createFacility('office', copenhagen) as Office | null;
+const warehouse = warehouseCompany.createFacility('warehouse', copenhagen) as StorageFacility | null;
 
 if (warehouse && whOffice) {
   whOffice.setWorkerCount(100);
@@ -443,8 +446,8 @@ console.log('\n=== MARKET SELL OFFER TEST ===\n');
 
 const market = game.getMarket();
 const sellerCompany = game.addCompany('seller', 'Seller Corp');
-const sellerOffice = sellerCompany.createFacility('office', copenhagen);
-const sellerFarm = sellerCompany.createFacility('farm', copenhagen);
+const sellerOffice = sellerCompany.createFacility('office', copenhagen) as Office | null;
+const sellerFarm = sellerCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
 
 if (sellerFarm && sellerOffice) {
   sellerOffice.setWorkerCount(100);
@@ -487,8 +490,8 @@ if (sellerFarm && sellerOffice) {
 console.log('\n=== CONTRACT BETWEEN COMPANIES TEST ===\n');
 
 const buyerCompany = game.addCompany('buyer', 'Buyer Corp');
-const buyerOffice = buyerCompany.createFacility('office', prague);
-const buyerWarehouse = buyerCompany.createFacility('warehouse', prague);
+const buyerOffice = buyerCompany.createFacility('office', prague) as Office | null;
+const buyerWarehouse = buyerCompany.createFacility('warehouse', prague) as StorageFacility | null;
 
 if (buyerWarehouse && sellerFarm && buyerOffice) {
   buyerOffice.setWorkerCount(100);

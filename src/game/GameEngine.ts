@@ -1,5 +1,7 @@
 import { Company } from './Company.js';
 import { Market } from './Market.js';
+import { ProductionFacility } from './ProductionFacility.js';
+import { StorageFacility } from './StorageFacility.js';
 
 export class GameEngine {
   private companies: Map<string, Company>;
@@ -26,7 +28,12 @@ export class GameEngine {
    * This processes wages, then production, then contracts, then updates sell offers, then advances to the next tick.
    */
   processTick(): void {
-    // First, update office effectivity multipliers for all facilities
+    // First, update administrative loads for all offices (based on controlled facility wages)
+    this.companies.forEach(company => {
+      company.updateAdministrativeLoads();
+    });
+
+    // Then, update office effectivity multipliers for all facilities
     this.companies.forEach(company => {
       company.updateOfficeEffectivity();
     });
@@ -68,6 +75,9 @@ export class GameEngine {
       const facility = seller.facilities.find(f => f.id === offer.sellerFacilityId);
       if (!facility) return;
       
+      // Only production and storage facilities have inventory and flow tracking
+      if (!(facility instanceof ProductionFacility || facility instanceof StorageFacility)) return;
+      
       // Get the net flow for this resource
       const netFlow = facility.getNetFlow();
       const resourceNetFlow = netFlow.get(offer.resource) || 0;
@@ -102,6 +112,13 @@ export class GameEngine {
       
       if (!buyerFacility || !sellerFacility) {
         // Facility no longer exists, skip this contract
+        continue;
+      }
+      
+      // Check if facilities have inventory (Production or Storage facilities)
+      if (!(buyerFacility instanceof ProductionFacility || buyerFacility instanceof StorageFacility) ||
+          !(sellerFacility instanceof ProductionFacility || sellerFacility instanceof StorageFacility)) {
+        // Can't execute contracts on offices
         continue;
       }
       

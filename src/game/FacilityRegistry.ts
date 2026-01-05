@@ -1,11 +1,17 @@
 import { Recipe } from './Recipe.js';
 
 /**
+ * Category of facility
+ */
+export type FacilityCategory = 'production' | 'storage' | 'office';
+
+/**
  * Definition of a facility type
  */
 export interface FacilityDefinition {
   type: string;
   name: string;
+  category: FacilityCategory; // Type of facility (production/storage/office)
   cost: number;
   workerMultiplier: number; // Worker multiplier (warehouse = 1.0 baseline)
   capacityMultiplier: number; // Inventory capacity multiplier (warehouse = 10x baseline)
@@ -25,6 +31,7 @@ export class FacilityRegistry {
     this.register({
       type: 'farm',
       name: 'Farm',
+      category: 'production',
       cost: 1000,
       workerMultiplier: 3.0,
       capacityMultiplier: 1.0, // Base capacity
@@ -37,6 +44,7 @@ export class FacilityRegistry {
     this.register({
       type: 'mill',
       name: 'Mill',
+      category: 'production',
       cost: 1500,
       workerMultiplier: 2.5,
       capacityMultiplier: 1.5, // 1.5x capacity
@@ -49,6 +57,7 @@ export class FacilityRegistry {
     this.register({
       type: 'bakery',
       name: 'Bakery',
+      category: 'production',
       cost: 2000,
       workerMultiplier: 2.0,
       capacityMultiplier: 2.0, // 2x capacity
@@ -61,6 +70,7 @@ export class FacilityRegistry {
     this.register({
       type: 'warehouse',
       name: 'Warehouse',
+      category: 'storage',
       cost: 500,
       workerMultiplier: 1.0,
       capacityMultiplier: 10.0, // 10x capacity!
@@ -73,6 +83,7 @@ export class FacilityRegistry {
     this.register({
       type: 'office',
       name: 'Office',
+      category: 'office',
       cost: 2500,
       workerMultiplier: 2.0,
       capacityMultiplier: 0.0, // No inventory capacity

@@ -268,6 +268,20 @@
             </div>
         </div>
 
+        <div class="controls">
+            <div class="section-title">⚙️ Cheat Menu</div>
+            <div class="control-row">
+                <label>Add Balance:</label>
+                <input type="number" id="cheatAmount" value="1000" min="0">
+                <button onclick="cheatAddBalance()" class="secondary">Add to Current Company</button>
+            </div>
+            <div class="control-row">
+                <label>Set Balance:</label>
+                <input type="number" id="cheatSetAmount" value="10000" min="0">
+                <button onclick="cheatSetBalance()" class="secondary">Set Current Company Balance</button>
+            </div>
+        </div>
+
         <div class="company-panel">
             <div class="company-header" id="currentCompanyHeader">
                 <span>👩‍💼 Alice Corp</span>
@@ -481,6 +495,7 @@
         import { FacilityRegistry } from './dist/game/FacilityRegistry.js';
         import { ResourceRegistry } from './dist/game/ResourceRegistry.js';
         import { CityRegistry } from './dist/game/CityRegistry.js';
+        import { AdminFunctions } from './dist/game/adminFunctions.js';
 
         // Initialize game
         let game = new GameEngine();
@@ -660,7 +675,12 @@
                 select.appendChild(option);
             });
         }
-                    infoDiv.textContent = `Upgrade to Size ${newSize}: Cost $${cost.toFixed(2)} | Required Workers ${currentRequired}→${newRequired} | Output ${facility.getProductionMultiplier().toFixed(2)}x→${newMultiplier.toFixed(2)}x`;
+                    // Only show output info for production facilities
+                    if (facility.getProductionMultiplier) {
+                        infoDiv.textContent = `Upgrade to Size ${newSize}: Cost $${cost.toFixed(2)} | Required Workers ${currentRequired}→${newRequired} | Output ${facility.getProductionMultiplier().toFixed(2)}x→${newMultiplier.toFixed(2)}x`;
+                    } else {
+                        infoDiv.textContent = `Upgrade to Size ${newSize}: Cost $${cost.toFixed(2)} | Required Workers ${currentRequired}→${newRequired}`;
+                    }
                 }
             };
             
@@ -699,7 +719,12 @@
                         const currentRequired = facility.calculateRequiredWorkers();
                         const newRequired = Math.ceil(FacilityRegistry.get(facility.type).workerMultiplier * Math.pow(newSize, 1.2));
                         const newMultiplier = Math.sqrt(newSize);
-                        infoDiv.textContent = `Degrade to Size ${newSize}: Refund $${refund.toFixed(2)} (50%) | Required Workers ${currentRequired}→${newRequired} | Output ${facility.getProductionMultiplier().toFixed(2)}x→${newMultiplier.toFixed(2)}x`;
+                        // Only show output info for production facilities
+                        if (facility.getProductionMultiplier) {
+                            infoDiv.textContent = `Degrade to Size ${newSize}: Refund $${refund.toFixed(2)} (50%) | Required Workers ${currentRequired}→${newRequired} | Output ${facility.getProductionMultiplier().toFixed(2)}x→${newMultiplier.toFixed(2)}x`;
+                        } else {
+                            infoDiv.textContent = `Degrade to Size ${newSize}: Refund $${refund.toFixed(2)} (50%) | Required Workers ${currentRequired}→${newRequired}`;
+                        }
                     }
                 }
             };
@@ -916,39 +941,60 @@
             company.facilities.forEach((facility, index) => {
                 // Get facility size, workers, and output multiplier
                 const requiredWorkers = Math.ceil((FacilityRegistry.get(facility.type)?.workerMultiplier || 1.0) * Math.pow(facility.size, 1.2));
-                const sizeInfo = `Size: ${facility.size} | Workers: ${facility.workers}/${requiredWorkers} | Output: ${facility.getProductionMultiplier().toFixed(2)}x | Effectivity: ${facility.effectivity.toFixed(2)}`;
                 
-                // Get facility status
-                const statusStr = facility.isProducing 
-                    ? `Producing (${facility.productionProgress}/${facility.recipe?.ticksRequired || 0})` 
-                    : 'Idle';
+                // Only production facilities have output multiplier
+                let sizeInfo;
+                if (facility.getProductionMultiplier) {
+                    const baseMultiplier = facility.getProductionMultiplier();
+                    const actualOutput = baseMultiplier * facility.effectivity;
+                    sizeInfo = `Size: ${facility.size} | Workers: ${facility.workers}/${requiredWorkers} | Output: ${actualOutput.toFixed(2)}x (Base: ${baseMultiplier.toFixed(2)}x × Effectivity: ${facility.effectivity.toFixed(2)})`;
+                } else {
+                    // Office or storage facility - no production multiplier
+                    sizeInfo = `Size: ${facility.size} | Workers: ${facility.workers}/${requiredWorkers} | Effectivity: ${facility.effectivity.toFixed(2)}`;
+                }
                 
-                // Get recipe name
-                const recipeName = facility.recipe ? facility.recipe.name : 'No recipe';
+                // Get facility status and inventory (only for facilities with inventory)
+                let statusStr = 'N/A';
+                let recipeName = 'N/A';
+                let inventoryStr = 'N/A';
                 
-                // Get inventory with emojis
-                const inventoryItems = Array.from(facility.inventory.entries())
-                    .filter(([_, amount]) => amount > 0)
-                    .map(([resource, amount]) => {
-                        const resourceDef = ResourceRegistry.get(resource);
-                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                        const weight = resourceDef ? resourceDef.weight : 1.0;
-                        const totalWeight = amount * weight;
-                        return `${icon}${resource}: ${amount} (${totalWeight.toFixed(1)}w)`;
-                    })
-                    .join('<br>          ');
-                const inventoryStr = inventoryItems || 'empty';
+                if (facility.inventory) {
+                    // Production or Storage facility
+                    statusStr = facility.isProducing 
+                        ? `Producing (${facility.productionProgress}/${facility.recipe?.ticksRequired || 0})` 
+                        : 'Idle';
+                    
+                    recipeName = facility.recipe ? facility.recipe.name : 'No recipe';
+                    
+                    // Get inventory with emojis
+                    const inventoryItems = Array.from(facility.inventory.entries())
+                        .filter(([_, amount]) => amount > 0)
+                        .map(([resource, amount]) => {
+                            const resourceDef = ResourceRegistry.get(resource);
+                            const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                            const weight = resourceDef ? resourceDef.weight : 1.0;
+                            const totalWeight = amount * weight;
+                            return `${icon}${resource}: ${amount} (${totalWeight.toFixed(1)}w)`;
+                        })
+                        .join('<br>          ');
+                    inventoryStr = inventoryItems || 'empty';
+                } else {
+                    // Office - no inventory
+                    statusStr = 'Administrative';
+                    recipeName = 'N/A (Office)';
+                    inventoryStr = 'N/A (Office)';
+                }
                 
                 // Get inventory capacity info (offices don't use inventory)
                 let capacityStr = '';
-                if (facility.type === 'office') {
-                    capacityStr = 'Capacity: N/A (Administrative facility)';
-                } else {
+                if (facility.inventory) {
                     const maxCapacity = facility.getMaxInventoryCapacity();
                     const currentInventory = facility.getTotalInventory();
                     const inventoryPercent = Math.round(facility.getInventoryPercentage() * 100);
                     const overCapacityIndicator = facility.isInventoryOverCapacity() ? ' ⚠️ OVER CAPACITY' : '';
                     capacityStr = `Capacity: ${currentInventory.toFixed(1)}/${maxCapacity} weight (${inventoryPercent}%)${overCapacityIndicator}`;
+                } else {
+                    capacityStr = 'Capacity: N/A (Administrative facility)';
                 }
                 
                 // Get contracts info
@@ -978,92 +1024,101 @@
                     }).join('<br>          ');
                 }
                 
-                // Get flow information
+                // Get flow information (only for facilities with inventory)
                 let flowHtml = '';
                 
-                // Imports
-                const imports = facility.getImportRate();
-                if (imports.size > 0) {
-                    flowHtml += '<br>        <span style="color: #9cdcfe;">Import:</span> ';
-                    const importParts = [];
-                    imports.forEach((rate, resource) => {
-                        const resourceDef = ResourceRegistry.get(resource);
-                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                        importParts.push(`${icon}+${rate.toFixed(2)}/tick`);
-                    });
-                    flowHtml += importParts.join(', ');
-                }
-                
-                // Exports
-                const exports = facility.getExportRate();
-                if (exports.size > 0) {
-                    flowHtml += '<br>        <span style="color: #9cdcfe;">Export:</span> ';
-                    const exportParts = [];
-                    exports.forEach((rate, resource) => {
-                        const resourceDef = ResourceRegistry.get(resource);
-                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                        exportParts.push(`${icon}-${rate.toFixed(2)}/tick`);
-                    });
-                    flowHtml += exportParts.join(', ');
-                }
-                
-                // Production
-                const production = facility.getProductionRate();
-                if (production.size > 0) {
-                    flowHtml += '<br>        <span style="color: #4ec9b0;">Production:</span> ';
-                    const prodParts = [];
-                    production.forEach((rate, resource) => {
-                        const resourceDef = ResourceRegistry.get(resource);
-                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                        prodParts.push(`${icon}+${rate.toFixed(2)}/tick`);
-                    });
-                    flowHtml += prodParts.join(', ');
-                }
-                
-                // Consumption
-                const consumption = facility.getConsumptionRate();
-                if (consumption.size > 0) {
-                    flowHtml += '<br>        <span style="color: #f48771;">Consumption:</span> ';
-                    const consParts = [];
-                    consumption.forEach((rate, resource) => {
-                        const resourceDef = ResourceRegistry.get(resource);
-                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                        consParts.push(`${icon}-${rate.toFixed(2)}/tick`);
-                    });
-                    flowHtml += consParts.join(', ');
-                }
-                
-                // Net flow
-                const netFlow = facility.getNetFlow();
-                if (netFlow.size > 0) {
-                    flowHtml += '<br>        <span style="color: #dcdcaa; font-weight: bold;">Net:</span> ';
-                    const netParts = [];
-                    netFlow.forEach((rate, resource) => {
-                        const resourceDef = ResourceRegistry.get(resource);
-                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                        const sign = rate >= 0 ? '+' : '';
-                        const color = rate >= 0 ? '#4ec9b0' : '#f48771';
-                        netParts.push(`<span style="color: ${color};">${icon}${sign}${rate.toFixed(2)}/tick</span>`);
-                    });
-                    flowHtml += netParts.join(', ');
-                }
-                
-                // Depletion warnings
-                let depletionHtml = '';
-                const depletionWarnings = [];
-                netFlow.forEach((rate, resource) => {
-                    if (rate < 0) {
-                        const ticks = facility.getTicksUntilDepletion(resource);
-                        if (ticks !== null) {
+                if (facility.getImportRate) {
+                    // Imports
+                    const imports = facility.getImportRate();
+                    if (imports.size > 0) {
+                        flowHtml += '<br>        <span style="color: #9cdcfe;">Import:</span> ';
+                        const importParts = [];
+                        imports.forEach((rate, resource) => {
                             const resourceDef = ResourceRegistry.get(resource);
                             const icon = resourceDef ? resourceDef.icon + ' ' : '';
-                            const color = ticks <= 5 ? '#f48771' : (ticks <= 10 ? '#ce9178' : '#9cdcfe');
-                            depletionWarnings.push(`<span style="color: ${color};">${icon}${ticks} ticks</span>`);
+                            importParts.push(`${icon}+${rate.toFixed(2)}/tick`);
+                        });
+                        flowHtml += importParts.join(', ');
+                    }
+                    
+                    // Exports
+                    const exports = facility.getExportRate();
+                    if (exports.size > 0) {
+                        flowHtml += '<br>        <span style="color: #9cdcfe;">Export:</span> ';
+                        const exportParts = [];
+                        exports.forEach((rate, resource) => {
+                            const resourceDef = ResourceRegistry.get(resource);
+                            const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                            exportParts.push(`${icon}-${rate.toFixed(2)}/tick`);
+                        });
+                        flowHtml += exportParts.join(', ');
+                    }
+                    
+                    // Production (only for production facilities)
+                    if (facility.getProductionRate) {
+                        const production = facility.getProductionRate();
+                        if (production.size > 0) {
+                            flowHtml += '<br>        <span style="color: #4ec9b0;">Production:</span> ';
+                            const prodParts = [];
+                            production.forEach((rate, resource) => {
+                                const resourceDef = ResourceRegistry.get(resource);
+                                const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                                prodParts.push(`${icon}+${rate.toFixed(2)}/tick`);
+                            });
+                            flowHtml += prodParts.join(', ');
                         }
                     }
-                });
-                if (depletionWarnings.length > 0) {
-                    depletionHtml = '<br>        <span style="color: #f48771; font-weight: bold;">⚠️ Depleting:</span> ' + depletionWarnings.join(', ');
+                    
+                    // Consumption (only for production facilities)
+                    if (facility.getConsumptionRate) {
+                        const consumption = facility.getConsumptionRate();
+                        if (consumption.size > 0) {
+                            flowHtml += '<br>        <span style="color: #f48771;">Consumption:</span> ';
+                            const consParts = [];
+                            consumption.forEach((rate, resource) => {
+                                const resourceDef = ResourceRegistry.get(resource);
+                                const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                                consParts.push(`${icon}-${rate.toFixed(2)}/tick`);
+                            });
+                            flowHtml += consParts.join(', ');
+                        }
+                    }
+                    
+                    // Net flow
+                    const netFlow = facility.getNetFlow();
+                    if (netFlow.size > 0) {
+                        flowHtml += '<br>        <span style="color: #dcdcaa; font-weight: bold;">Net:</span> ';
+                        const netParts = [];
+                        netFlow.forEach((rate, resource) => {
+                            const resourceDef = ResourceRegistry.get(resource);
+                            const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                            const sign = rate >= 0 ? '+' : '';
+                            const color = rate >= 0 ? '#4ec9b0' : '#f48771';
+                            netParts.push(`<span style="color: ${color};">${icon}${sign}${rate.toFixed(2)}/tick</span>`);
+                        });
+                        flowHtml += netParts.join(', ');
+                    }
+                    
+                    // Depletion warnings
+                    let depletionHtml = '';
+                    const depletionWarnings = [];
+                    netFlow.forEach((rate, resource) => {
+                        if (rate < 0) {
+                            const ticks = facility.getTicksUntilDepletion(resource);
+                            if (ticks !== null) {
+                                const resourceDef = ResourceRegistry.get(resource);
+                                const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                                const color = ticks <= 5 ? '#f48771' : (ticks <= 10 ? '#ce9178' : '#9cdcfe');
+                                depletionWarnings.push(`<span style="color: ${color};">${icon}${ticks} ticks</span>`);
+                            }
+                        }
+                    });
+                    if (depletionWarnings.length > 0) {
+                        depletionHtml = '<br>        <span style="color: #f48771; font-weight: bold;">⚠️ Depleting:</span> ' + depletionWarnings.join(', ');
+                    }
+                    
+                    // Append depletion warnings to flow HTML
+                    flowHtml += depletionHtml;
                 }
                 
                 html += `
@@ -1075,7 +1130,7 @@
                         <div class="facility-status">Recipe: ${recipeName}</div>
                         <div class="facility-status">Status: ${statusStr}</div>
                         <div class="facility-status" style="color: #dcdcaa;">${capacityStr}</div>
-                        <div class="facility-inventory">Inventory: ${inventoryStr}${contractsHtml}${flowHtml}${depletionHtml}</div>
+                        <div class="facility-inventory">Inventory: ${inventoryStr}${contractsHtml}${flowHtml}</div>
                     </div>
                 `;
             });
@@ -1583,6 +1638,47 @@
             }
             updateDisplay();
         };
+
+        // ============================================================
+        // CHEAT FUNCTIONS
+        // ============================================================
+
+        window.cheatAddBalance = function() {
+            const company = getCurrentCompany();
+            const amount = parseFloat(document.getElementById('cheatAmount').value);
+            
+            if (isNaN(amount) || amount < 0) {
+                addMessage('❌ Invalid amount! Must be a positive number.', 'error');
+                return;
+            }
+            
+            if (AdminFunctions.addBalance(company, amount)) {
+                addMessage(`💰 CHEAT: Added $${amount.toFixed(2)} to ${company.name}'s balance (now $${company.balance.toFixed(2)})`, 'info');
+                updateDisplay();
+            } else {
+                addMessage('❌ Cheat failed!', 'error');
+            }
+        };
+
+        window.cheatSetBalance = function() {
+            const company = getCurrentCompany();
+            const amount = parseFloat(document.getElementById('cheatSetAmount').value);
+            
+            if (isNaN(amount) || amount < 0) {
+                addMessage('❌ Invalid amount! Must be a positive number.', 'error');
+                return;
+            }
+            
+            const oldBalance = company.balance;
+            if (AdminFunctions.setBalance(company, amount)) {
+                addMessage(`💰 CHEAT: Set ${company.name}'s balance to $${amount.toFixed(2)} (was $${oldBalance.toFixed(2)})`, 'info');
+                updateDisplay();
+            } else {
+                addMessage('❌ Cheat failed!', 'error');
+            }
+        };
+
+        // ============================================================
 
         // Initialize display
         document.getElementById('facilitiesInfo').textContent = FacilityRegistry.displayFacilities();
