@@ -6,6 +6,7 @@ import { RecipeRegistry } from './game/RecipeRegistry.js';
 import { ProductionFacility } from './game/ProductionFacility.js';
 import { StorageFacility } from './game/StorageFacility.js';
 import { Office } from './game/Office.js';
+import { RetailFacility } from './game/RetailFacility.js';
 
 // Create game instance
 const game = new GameEngine();
@@ -166,7 +167,7 @@ console.log('\n=== CIRCULAR DEPENDENCY PREVENTION (ONE-TICK DELAY) ===\n');
 
 if (farm) {
   // Reset to clean state
-  farm.inventory.clear();
+  farm.inventory!.clear();
   farm.setWorkerCount(farm.calculateRequiredWorkers());
   
   const tick1Capacity = farm.getMaxInventoryCapacity();
@@ -439,6 +440,242 @@ if (warehouse && whOffice) {
   assert(
     inventoryWeight > 0 && inventoryWeight <= warehouseCapacity,
     `Warehouse holds inventory: ${inventoryWeight.toFixed(1)} / ${warehouseCapacity.toFixed(0)}`
+  );
+}
+
+console.log('\n=== RETAIL FACILITY TEST ===\n');
+
+const retailCompany = game.addCompany('retail', 'Retail Corp');
+const retailOffice = retailCompany.createFacility('office', copenhagen) as Office | null;
+const retailFacility = retailCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+const retailFarm = retailCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
+
+if (retailFacility && retailOffice && retailFarm) {
+  retailOffice.setWorkerCount(100);
+  retailFacility.setWorkerCount(retailFacility.calculateRequiredWorkers());
+  retailFarm.setWorkerCount(retailFarm.calculateRequiredWorkers());
+  
+  game.processTick();
+  
+  // Test retail facility creation
+  assert(retailFacility.type === 'retail', 'Retail facility type is "retail"');
+  assert(retailFacility.ownerId === retailCompany.id, 'Retail facility owned by correct company');
+  
+  // Test retail has inventory capacity
+  const retailCapacity = retailFacility.getMaxInventoryCapacity();
+  assert(
+    retailCapacity > 0,
+    `Retail facility has capacity: ${retailCapacity.toFixed(0)} units`
+  );
+  
+  // Add grain to farm for testing transfer
+  retailFarm.addResource('grain', 100);
+  const farmGrainBefore = retailFarm.getResource('grain');
+  
+  // Test transfer from farm to retail
+  const transferred = retailCompany.transferResource(retailFarm, retailFacility, 'grain', 50);
+  assert(transferred, 'Successfully transferred grain from farm to retail');
+  
+  const farmGrainAfter = retailFarm.getResource('grain');
+  const retailGrainAfter = retailFacility.getResource('grain');
+  
+  assert(
+    farmGrainAfter === farmGrainBefore - 50,
+    `Farm inventory reduced: ${farmGrainBefore.toFixed(0)} → ${farmGrainAfter.toFixed(0)}`
+  );
+  assert(
+    retailGrainAfter === 50,
+    `Retail inventory increased: 0 → ${retailGrainAfter.toFixed(0)}`
+  );
+  
+  // Test selling products for revenue
+  const companyBalanceBefore = retailCompany.balance;
+  const retailGrainBefore = retailFacility.getResource('grain');
+  const pricePerUnit = 3.50;
+  
+  const revenue = retailCompany.sellFromRetail(retailFacility, 'grain', 30, pricePerUnit);
+  
+  assert(
+    revenue > 0,
+    `Retail generated revenue: $${revenue.toFixed(2)} (30 units × $${pricePerUnit})`
+  );
+  assert(
+    Math.abs(revenue - (30 * pricePerUnit)) < 0.01,
+    `Revenue calculation correct: 30 × $${pricePerUnit} = $${revenue.toFixed(2)}`
+  );
+  
+  const companyBalanceAfter = retailCompany.balance;
+  const retailGrainAfter2 = retailFacility.getResource('grain');
+  
+  assert(
+    companyBalanceAfter === companyBalanceBefore + revenue,
+    `Company balance increased by revenue: $${companyBalanceBefore.toFixed(2)} → $${companyBalanceAfter.toFixed(2)}`
+  );
+  assert(
+    retailGrainAfter2 === retailGrainBefore - 30,
+    `Retail inventory decreased: ${retailGrainBefore.toFixed(0)} → ${retailGrainAfter2.toFixed(0)}`
+  );
+  
+  // Test selling more than available
+  const failureRevenue = retailCompany.sellFromRetail(retailFacility, 'grain', 100, pricePerUnit);
+  assert(
+    failureRevenue === 0,
+    'Sale correctly prevented when insufficient inventory'
+  );
+  
+  // Test getResource method
+  const currentStock = retailFacility.getResource('grain');
+  assert(
+    currentStock === retailGrainAfter2,
+    `getResource returns correct inventory: ${currentStock.toFixed(0)} units`
+  );
+}
+
+console.log('\n=== AUTOMATIC RETAIL DEMAND SYSTEM TEST ===\n');
+
+// Create a new retail test with automatic demand
+const demandCompany = game.addCompany('demand', 'Demand Test Corp');
+const demandOffice = demandCompany.createFacility('office', copenhagen) as Office | null;
+const demandRetail = demandCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+
+if (demandRetail && demandOffice) {
+  demandOffice.setWorkerCount(100);
+  demandRetail.setWorkerCount(demandRetail.calculateRequiredWorkers());
+  
+  // Add bread inventory for testing
+  demandRetail.addResource('bread', 1000);
+  
+  // Set price for bread
+  demandRetail.setPrice('bread', 12.00);
+  
+  const balanceBefore = demandCompany.balance;
+  const inventoryBefore = demandRetail.getResource('bread');
+  
+  // Process tick (should trigger automatic sales)
+  game.processTick();
+  
+  const balanceAfter = demandCompany.balance;
+  const inventoryAfter = demandRetail.getResource('bread');
+  const revenueGenerated = demandRetail.revenue;
+  
+  assert(
+    revenueGenerated > 0,
+    `Automatic sales generated revenue: $${revenueGenerated.toFixed(2)}`
+  );
+  assert(
+    balanceAfter > balanceBefore,
+    `Company balance increased: $${balanceBefore.toFixed(2)} → $${balanceAfter.toFixed(2)}`
+  );
+  assert(
+    inventoryAfter < inventoryBefore,
+    `Bread inventory decreased: ${inventoryBefore.toFixed(0)} → ${inventoryAfter.toFixed(0)} (sold ${(inventoryBefore - inventoryAfter).toFixed(0)} units)`
+  );
+  
+  // Calculate expected demand
+  const copenhagenPop = copenhagen.population;
+  const breadConsumptionRate = 0.10; // DEFAULT_CONSUMPTION_RATES.bread
+  const expectedDemand = copenhagenPop * breadConsumptionRate;
+  
+  // Count retailers in Copenhagen to calculate share
+  let retailersInCopenhagen = 0;
+  [alice, bob, retailCompany, demandCompany].forEach(company => {
+    company.facilities.forEach(f => {
+      if (f.type === 'retail' && f.city.name === 'Copenhagen' && (f as RetailFacility).getPrice('bread') > 0) {
+        retailersInCopenhagen++;
+      }
+    });
+  });
+  
+  const expectedShare = expectedDemand / retailersInCopenhagen;
+  const actualSold = inventoryBefore - inventoryAfter;
+  
+  assert(
+    actualSold <= expectedShare + 1,
+    `Sales within expected demand share: ${actualSold.toFixed(0)} ≤ ${expectedShare.toFixed(0)}`
+  );
+}
+
+console.log('\n=== MULTIPLE RETAILERS DEMAND DISTRIBUTION TEST ===\n');
+
+// Create second retailer to test demand splitting
+const demand2Company = game.addCompany('demand2', 'Demand Test 2 Corp');
+const demand2Office = demand2Company.createFacility('office', copenhagen) as Office | null;
+const demand2Retail = demand2Company.createFacility('retail', copenhagen) as RetailFacility | null;
+
+if (demand2Retail && demand2Office && demandRetail) {
+  demand2Office.setWorkerCount(100);
+  demand2Retail.setWorkerCount(demand2Retail.calculateRequiredWorkers());
+  
+  // Add flour to both retailers
+  demandRetail.addResource('flour', 500);
+  demand2Retail.addResource('flour', 500);
+  
+  // Set prices
+  demandRetail.setPrice('flour', 6.00);
+  demand2Retail.setPrice('flour', 6.00);
+  
+  const retail1Before = demandRetail.getResource('flour');
+  const retail2Before = demand2Retail.getResource('flour');
+  
+  // Process tick
+  game.processTick();
+  
+  const retail1After = demandRetail.getResource('flour');
+  const retail2After = demand2Retail.getResource('flour');
+  
+  const retail1Sold = retail1Before - retail1After;
+  const retail2Sold = retail2Before - retail2After;
+  
+  assert(
+    retail1Sold > 0 && retail2Sold > 0,
+    `Both retailers made sales: Retail1=${retail1Sold.toFixed(0)}, Retail2=${retail2Sold.toFixed(0)}`
+  );
+  assert(
+    Math.abs(retail1Sold - retail2Sold) < retail1Sold * 0.1,
+    `Sales roughly equal between retailers: ${retail1Sold.toFixed(0)} ≈ ${retail2Sold.toFixed(0)}`
+  );
+}
+
+console.log('\n=== DEMAND REDISTRIBUTION TEST ===\n');
+
+// Test that unfulfilled demand goes to other retailers
+const lowStockCompany = game.addCompany('lowstock', 'Low Stock Corp');
+const lowStockOffice = lowStockCompany.createFacility('office', prague) as Office | null;
+const lowStockRetail = lowStockCompany.createFacility('retail', prague) as RetailFacility | null;
+const highStockRetail = lowStockCompany.createFacility('retail', prague) as RetailFacility | null;
+
+if (lowStockRetail && highStockRetail && lowStockOffice) {
+  lowStockOffice.setWorkerCount(100);
+  lowStockRetail.setWorkerCount(lowStockRetail.calculateRequiredWorkers());
+  highStockRetail.setWorkerCount(highStockRetail.calculateRequiredWorkers());
+  
+  // Give first retailer very little grain, second retailer plenty
+  lowStockRetail.addResource('grain', 10);
+  highStockRetail.addResource('grain', 10000);
+  
+  // Set prices
+  lowStockRetail.setPrice('grain', 3.00);
+  highStockRetail.setPrice('grain', 3.00);
+  
+  const lowBefore = lowStockRetail.getResource('grain');
+  const highBefore = highStockRetail.getResource('grain');
+  
+  // Process tick
+  game.processTick();
+  
+  const lowAfter = lowStockRetail.getResource('grain');
+  const highAfter = highStockRetail.getResource('grain');
+  
+  const lowSold = lowBefore - lowAfter;
+  const highSold = highBefore - highAfter;
+  
+  assert(
+    lowSold === lowBefore,
+    `Low stock retailer sold all inventory: ${lowSold.toFixed(0)}/${lowBefore.toFixed(0)}`
+  );
+  assert(
+    highSold > lowSold,
+    `High stock retailer picked up unfulfilled demand: ${highSold.toFixed(0)} > ${lowSold.toFixed(0)}`
   );
 }
 

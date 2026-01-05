@@ -3,7 +3,7 @@ import { Recipe } from './Recipe.js';
 /**
  * Category of facility
  */
-export type FacilityCategory = 'production' | 'storage' | 'office';
+export type FacilityCategory = 'production' | 'storage' | 'office' | 'retail';
 
 /**
  * Definition of a facility type
@@ -90,6 +90,19 @@ export class FacilityRegistry {
       allowedRecipes: [], // No recipes allowed
       defaultRecipe: null,
       description: 'Administrative office required to operate facilities in a country'
+    });
+
+    // Retail - sells products to the population
+    this.register({
+      type: 'retail',
+      name: 'Retail',
+      category: 'retail',
+      cost: 1800,
+      workerMultiplier: 1.5,
+      capacityMultiplier: 3.0, // 3x capacity for storing goods to sell
+      allowedRecipes: [], // No recipes - sells existing products
+      defaultRecipe: null,
+      description: 'Retail facility that sells products to the population for revenue'
     });
   }
 

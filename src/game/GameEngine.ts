@@ -2,6 +2,8 @@ import { Company } from './Company.js';
 import { Market } from './Market.js';
 import { ProductionFacility } from './ProductionFacility.js';
 import { StorageFacility } from './StorageFacility.js';
+import { RetailFacility } from './RetailFacility.js';
+import { CityRegistry } from './CityRegistry.js';
 
 export class GameEngine {
   private companies: Map<string, Company>;
@@ -53,11 +55,51 @@ export class GameEngine {
     // Then, process all contracts in creation order
     this.processContracts();
     
+    // Process retail demand for all cities
+    this.processRetailDemand();
+    
+    
     // Update sell offers based on net production
     this.updateSellOffers();
     
     // Advance to next tick after processing
     this.tickCount++;
+  }
+
+  /**
+   * Process retail demand for all cities
+   * Calculates demand and distributes sales among retailers in each city
+   */
+  private processRetailDemand(): void {
+    const cities = CityRegistry.getAllCities();
+    
+    for (const city of cities) {
+      // Collect all retail facilities in this city across all companies
+      const retailersInCity: RetailFacility[] = [];
+      
+      this.companies.forEach(company => {
+        company.facilities.forEach(facility => {
+          if (facility instanceof RetailFacility && 
+              facility.city.name === city.name && 
+              facility.city.country === city.country) {
+            retailersInCity.push(facility);
+          }
+        });
+      });
+      
+      // Process demand for this city
+      if (retailersInCity.length > 0) {
+        city.processRetailDemand(retailersInCity);
+        
+        // Add retail revenue to company balances
+        retailersInCity.forEach(retailer => {
+          const company = this.companies.get(retailer.ownerId);
+          if (company && retailer.revenue > 0) {
+            company.balance += retailer.revenue;
+          }
+        });
+      }
+    }
   }
 
   /**

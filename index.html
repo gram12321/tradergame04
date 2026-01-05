@@ -300,6 +300,7 @@
                     <option value="mill">Mill ($1500)</option>
                     <option value="bakery">Bakery ($2000)</option>
                     <option value="warehouse">Warehouse ($500)</option>
+                    <option value="retail">Retail ($1800)</option>
                 </select>
                 <label>City:</label>
                 <select id="currentFacilityCity">
@@ -320,6 +321,7 @@
                 <button onclick="toggleForm('currentEdit')">Edit Offer/Contract</button>
                 <button onclick="toggleForm('currentCancel')">Cancel Offer/Contract</button>
                 <button onclick="toggleForm('currentDestroy')">Destroy Facility</button>
+                <button onclick="toggleForm('currentSetRetailPrice')">Set Retail Price</button>
             </div>
             
             <div id="currentDestroy" class="action-form">
@@ -481,6 +483,30 @@
                 <button onclick="executeCancel()">Cancel</button>
                 <button onclick="toggleForm('currentCancel')" class="secondary">Close</button>
             </div>
+            
+            <div id="currentSetRetailPrice" class="action-form">
+                <div class="form-row">
+                    <label>Retail Facility:</label>
+                    <select id="currentRetailFacility" onchange="updateRetailPriceDisplay()">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="currentRetailResource">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Price per Unit:</label>
+                    <input type="number" id="currentRetailPrice" step="0.01" min="0" value="10.00">
+                </div>
+                <div class="form-row">
+                    <label style="width: auto; color: #9cdcfe; font-size: 12px;" id="currentRetailPriceInfo"></label>
+                </div>
+                <button onclick="executeSetRetailPrice()">Set Price</button>
+                <button onclick="toggleForm('currentSetRetailPrice')" class="secondary">Close</button>
+            </div>
         </div>
 
         
@@ -597,6 +623,9 @@
                 updateCancelOptions('current');
             } else if (formId.includes('Destroy')) {
                 updateDestroyFacilityDropdown('current', company);
+            } else if (formId.includes('SetRetailPrice')) {
+                updateRetailFacilityDropdown('current', company);
+                updateResourceDropdowns('currentRetailResource');
             }
         }
 
@@ -1121,6 +1150,26 @@
                     flowHtml += depletionHtml;
                 }
                 
+                // Retail-specific information
+                let retailHtml = '';
+                if (facility.type === 'retail') {
+                    retailHtml += '<br>        <span style="color: #4ec9b0; font-weight: bold;">💰 Retail Prices:</span><br>          ';
+                    const pricesList = [];
+                    const resources = ResourceRegistry.getAll();
+                    resources.forEach(resource => {
+                        const price = facility.getPrice(resource.id);
+                        if (price > 0) {
+                            pricesList.push(`${resource.icon} ${resource.name}: $${price.toFixed(2)}/unit`);
+                        }
+                    });
+                    if (pricesList.length === 0) {
+                        retailHtml += '<span style="color: #666;">No prices set</span>';
+                    } else {
+                        retailHtml += pricesList.join('<br>          ');
+                    }
+                    retailHtml += `<br>        <span style="color: #4ec9b0; font-weight: bold;">📊 Revenue This Tick:</span> $${facility.revenue.toFixed(2)}`;
+                }
+                
                 html += `
                     <div class="facility-item">
                         <div class="facility-name">${facility.name}</div>
@@ -1130,7 +1179,7 @@
                         <div class="facility-status">Recipe: ${recipeName}</div>
                         <div class="facility-status">Status: ${statusStr}</div>
                         <div class="facility-status" style="color: #dcdcaa;">${capacityStr}</div>
-                        <div class="facility-inventory">Inventory: ${inventoryStr}${contractsHtml}${flowHtml}</div>
+                        <div class="facility-inventory">Inventory: ${inventoryStr}${contractsHtml}${flowHtml}${retailHtml}</div>
                     </div>
                 `;
             });
@@ -1636,6 +1685,82 @@
             } else {
                 addMessage(`❌ Failed to update contract amount. Not enough in stock?`, 'error');
             }
+            updateDisplay();
+        };
+
+        // ============================================================
+        // RETAIL PRICE FUNCTIONS
+        // ============================================================
+
+        function updateRetailFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}RetailFacility`);
+            select.innerHTML = '';
+            
+            const retailFacilities = company.facilities.filter(f => f.type === 'retail');
+            
+            if (retailFacilities.length === 0) {
+                const option = document.createElement('option');
+                option.textContent = '(No retail facilities)';
+                select.appendChild(option);
+                return;
+            }
+            
+            retailFacilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = company.facilities.indexOf(facility);
+                option.textContent = `${facility.name} (${facility.city.name})`;
+                select.appendChild(option);
+            });
+            
+            updateRetailPriceDisplay();
+        }
+
+        window.updateRetailPriceDisplay = function() {
+            const company = getCurrentCompany();
+            const facilityIndex = parseInt(document.getElementById('currentRetailFacility').value);
+            const resourceId = document.getElementById('currentRetailResource').value;
+            const infoDiv = document.getElementById('currentRetailPriceInfo');
+            
+            if (isNaN(facilityIndex)) {
+                infoDiv.textContent = '';
+                return;
+            }
+            
+            const facility = company.facilities[facilityIndex];
+            const currentPrice = facility.getPrice(resourceId);
+            const inventory = facility.getResource(resourceId);
+            
+            infoDiv.textContent = `Current price: $${currentPrice.toFixed(2)}/unit | Inventory: ${inventory.toFixed(0)} units`;
+        };
+
+        window.executeSetRetailPrice = function() {
+            const company = getCurrentCompany();
+            const facilityIndex = parseInt(document.getElementById('currentRetailFacility').value);
+            const resourceId = document.getElementById('currentRetailResource').value;
+            const price = parseFloat(document.getElementById('currentRetailPrice').value);
+            
+            if (isNaN(facilityIndex)) {
+                addMessage('❌ No retail facility selected!', 'error');
+                return;
+            }
+            
+            if (isNaN(price) || price < 0) {
+                addMessage('❌ Invalid price! Must be a positive number.', 'error');
+                return;
+            }
+            
+            const facility = company.facilities[facilityIndex];
+            
+            if (facility.type !== 'retail') {
+                addMessage('❌ Selected facility is not a retail facility!', 'error');
+                return;
+            }
+            
+            facility.setPrice(resourceId, price);
+            
+            const resource = ResourceRegistry.get(resourceId);
+            addMessage(`✅ Set price for ${resource.name} to $${price.toFixed(2)}/unit at ${facility.name}`, 'success');
+            toggleForm('currentSetRetailPrice');
             updateDisplay();
         };
 

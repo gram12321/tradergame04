@@ -2,6 +2,7 @@ import { FacilityBase } from './FacilityBase.js';
 import { ProductionFacility } from './ProductionFacility.js';
 import { StorageFacility } from './StorageFacility.js';
 import { Office } from './Office.js';
+import { RetailFacility } from './RetailFacility.js';
 import { Market, SellOffer, Contract } from './Market.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
 import { RecipeRegistry } from './RecipeRegistry.js';
@@ -70,6 +71,9 @@ export class Company {
       case 'office':
         facility = new Office(type, this.id, facilityName, city);
         break;
+      case 'retail':
+        facility = new RetailFacility(type, this.id, facilityName, city);
+        break;
       default:
         // Fallback to production if category unknown
         facility = new ProductionFacility(type, this.id, facilityName, city);
@@ -85,7 +89,7 @@ export class Company {
     }
     
     // Initialize capacity for facilities with inventory
-    if (facility instanceof ProductionFacility || facility instanceof StorageFacility) {
+    if (facility instanceof ProductionFacility || facility instanceof StorageFacility || facility instanceof RetailFacility) {
       facility.updateInventoryCapacityForTick();
     }
     
@@ -293,7 +297,7 @@ export class Company {
   /**
    * Transfer resources between two facilities
    */
-  transferResource(fromFacility: ProductionFacility | StorageFacility, toFacility: ProductionFacility | StorageFacility, resource: string, amount: number): boolean {
+  transferResource(fromFacility: ProductionFacility | StorageFacility | RetailFacility, toFacility: ProductionFacility | StorageFacility | RetailFacility, resource: string, amount: number): boolean {
     // Verify both facilities belong to this company
     if (fromFacility.ownerId !== this.id || toFacility.ownerId !== this.id) {
       return false;
@@ -311,6 +315,31 @@ export class Company {
     }
 
     return false;
+  }
+
+  /**
+   * Sell products from a retail facility
+   * @param retailFacility The retail facility to sell from
+   * @param resource The resource to sell
+   * @param quantity The quantity to sell
+   * @param pricePerUnit The price per unit (will be based on demand in future)
+   * @returns Revenue generated, or 0 if sale failed
+   */
+  sellFromRetail(retailFacility: RetailFacility, resource: string, quantity: number, pricePerUnit: number): number {
+    // Verify facility belongs to this company
+    if (retailFacility.ownerId !== this.id) {
+      return 0;
+    }
+
+    // Attempt to sell
+    const revenue = retailFacility.sellProducts(resource, quantity, pricePerUnit);
+    
+    // Add revenue to company balance
+    if (revenue > 0) {
+      this.balance += revenue;
+    }
+
+    return revenue;
   }
 
   /**
