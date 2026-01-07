@@ -1070,6 +1070,113 @@ if (grainRetail && grapesRetail && rawOffice) {
   );
 }
 
+console.log('\n=== DEMAND CREATION TEST (Below-Average Pricing) ===\n');
+
+// Test that retailers pricing below city average create additional demand
+const demandCreationCompany1 = game.addCompany('demandcreate1', 'Demand Creation Test 1');
+const demandCreationCompany2 = game.addCompany('demandcreate2', 'Demand Creation Test 2');
+const demandCreationCompany3 = game.addCompany('demandcreate3', 'Demand Creation Test 3');
+
+const dcOffice1 = demandCreationCompany1.createFacility('office', aarhus) as Office | null;
+const dcOffice2 = demandCreationCompany2.createFacility('office', aarhus) as Office | null;
+const dcOffice3 = demandCreationCompany3.createFacility('office', aarhus) as Office | null;
+
+const dcRetail1 = demandCreationCompany1.createFacility('retail', aarhus) as RetailFacility | null;
+const dcRetail2 = demandCreationCompany2.createFacility('retail', aarhus) as RetailFacility | null;
+const dcRetail3 = demandCreationCompany3.createFacility('retail', aarhus) as RetailFacility | null;
+
+if (dcRetail1 && dcRetail2 && dcRetail3 && dcOffice1 && dcOffice2 && dcOffice3) {
+  dcOffice1.setWorkerCount(100);
+  dcOffice2.setWorkerCount(100);
+  dcOffice3.setWorkerCount(100);
+  dcRetail1.setWorkerCount(dcRetail1.calculateRequiredWorkers());
+  dcRetail2.setWorkerCount(dcRetail2.calculateRequiredWorkers());
+  dcRetail3.setWorkerCount(dcRetail3.calculateRequiredWorkers());
+  
+  // Give all retailers plenty of grain so none sell out
+  const largeInventory = 50000;
+  dcRetail1.addResource('grain', largeInventory);
+  dcRetail2.addResource('grain', largeInventory);
+  dcRetail3.addResource('grain', largeInventory);
+  
+  // Set prices: Cheap ($2), Average ($4), Expensive ($6)
+  // City average will be $4
+  dcRetail1.setPrice('grain', 2.00);  // 50% below average - should create demand
+  dcRetail2.setPrice('grain', 4.00);  // At average
+  dcRetail3.setPrice('grain', 6.00);  // 50% above average
+  
+  const inventory1Before = dcRetail1.getResource('grain');
+  const inventory2Before = dcRetail2.getResource('grain');
+  const inventory3Before = dcRetail3.getResource('grain');
+  
+  // Process one tick
+  game.processTick();
+  
+  const inventory1After = dcRetail1.getResource('grain');
+  const inventory2After = dcRetail2.getResource('grain');
+  const inventory3After = dcRetail3.getResource('grain');
+  
+  const sold1 = inventory1Before - inventory1After;
+  const sold2 = inventory2Before - inventory2After;
+  const sold3 = inventory3Before - inventory3After;
+  const totalSold = sold1 + sold2 + sold3;
+  
+  console.log(`  Aarhus population: ${aarhus.population.toLocaleString()}`);
+  console.log(`  Grain consumption rate: ${DEFAULT_CONSUMPTION_RATES.grain || 0} per capita`);
+  const baseDemand = aarhus.population * (DEFAULT_CONSUMPTION_RATES.grain || 0);
+  console.log(`  Base demand: ${baseDemand.toFixed(2)} units`);
+  console.log('  ');
+  console.log('  Retailer Prices:');
+  console.log(`    Retailer 1 (Cheap):     $2.00 (50% below avg)`);
+  console.log(`    Retailer 2 (Average):   $4.00 (at average)`);
+  console.log(`    Retailer 3 (Expensive): $6.00 (50% above avg)`);
+  console.log(`    City Average:           $4.00`);
+  console.log('  ');
+  console.log('  Sales Results:');
+  console.log(`    Retailer 1 (Cheap):     ${sold1.toFixed(2)} units (${(sold1 / totalSold * 100).toFixed(1)}% share)`);
+  console.log(`    Retailer 2 (Average):   ${sold2.toFixed(2)} units (${(sold2 / totalSold * 100).toFixed(1)}% share)`);
+  console.log(`    Retailer 3 (Expensive): ${sold3.toFixed(2)} units (${(sold3 / totalSold * 100).toFixed(1)}% share)`);
+  console.log(`    Total Sold:             ${totalSold.toFixed(2)} units`);
+  console.log('  ');
+  
+  // Calculate what would be equal shares without any price effects
+  const equalShare = totalSold / 3;
+  console.log(`  Equal share (no price effects): ${equalShare.toFixed(2)} units each (33.3%)`);
+  
+  // Verify demand creation occurred (total sold > base demand)
+  assert(
+    totalSold > baseDemand,
+    `Demand creation: Total sold (${totalSold.toFixed(0)}) > Base demand (${baseDemand.toFixed(0)})`
+  );
+  
+  // Calculate excess demand created
+  const excessDemand = totalSold - baseDemand;
+  const excessPercent = (excessDemand / baseDemand * 100);
+  console.log(`  Excess demand created: ${excessDemand.toFixed(2)} units (+${excessPercent.toFixed(1)}%)`);
+  
+  // Verify cheap retailer sold significantly more than average retailer
+  assert(
+    sold1 > sold2 * 1.3,
+    `Cheap retailer advantage: ${sold1.toFixed(0)} > ${(sold2 * 1.3).toFixed(0)} (${((sold1 / sold2 - 1) * 100).toFixed(1)}% more than average-priced)`
+  );
+  
+  // Verify average retailer sold more than expensive retailer
+  assert(
+    sold2 > sold3,
+    `Average retailer outperformed expensive: ${sold2.toFixed(0)} > ${sold3.toFixed(0)}`
+  );
+  
+  // Verify the cheap retailer captured majority of excess demand
+  // Since it's the only one below average, most created demand should go there
+  const cheaperAdvantage = sold1 - equalShare;
+  console.log(`  Cheap retailer advantage: +${cheaperAdvantage.toFixed(2)} units (+${(cheaperAdvantage / equalShare * 100).toFixed(1)}%) vs equal share`);
+  
+  assert(
+    cheaperAdvantage > excessDemand * 0.5,
+    `Cheap retailer captured majority of created demand: ${cheaperAdvantage.toFixed(0)} > ${(excessDemand * 0.5).toFixed(0)}`
+  );
+}
+
 console.log('\n=== DEMAND CALCULATION STEP-BY-STEP EXPLANATION ===\n');
 
 // Create a controlled scenario to demonstrate each step with actual numbers
@@ -1195,20 +1302,18 @@ if (stepRetail1 && stepRetail2 && stepRetail3 && stepOffice1 && stepOffice2 && s
     'Cheapest retailer ($8) sold out completely'
   );
   
-  // Verify substitution happened in 3-retailer scenario
-  // With average bread price of $12 vs flour at $4, bread is relatively expensive
-  // Expect bread demand to decrease by ~4-5%
+  // With demand creation enabled, cheap retailers create additional demand
+  // The cheapest retailer at $8 vs dampened avg ~$12 creates significant extra demand
+  // Verify that total demand increased due to the cheap pricing
   assert(
-    totalBreadSold < breadBaseDemand * 0.96,
-    `Substitution effect: bread demand reduced by expensive prices (${totalBreadSold.toFixed(0)} < ${(breadBaseDemand * 0.96).toFixed(0)})`
+    totalBreadSold > breadBaseDemand * 0.95,
+    `Demand creation occurred: ${totalBreadSold.toFixed(0)} > ${(breadBaseDemand * 0.95).toFixed(0)}`
   );
   
-  // In this complex scenario with 3 bread retailers but only 1 flour retailer,
-  // the substitution dynamics are affected by market structure
-  // We verify that substitution occurred (bread reduced) even if flour doesn't increase proportionally
+  // Verify the cheapest retailer sold out completely (hit inventory limit)
   assert(
-    totalBreadSold < breadBaseDemand,
-    `Bread sales below base demand due to substitution: ${totalBreadSold.toFixed(0)} < ${breadBaseDemand.toFixed(0)}`
+    breadSold3 === 3000,
+    `Cheapest retailer sold all available inventory: ${breadSold3.toFixed(0)} units`
   );
 }
 

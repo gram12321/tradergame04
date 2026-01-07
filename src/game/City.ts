@@ -22,6 +22,10 @@ export class City {
      * STEP 1: Calculate base demand per resource (consumption rate per capita)
      * STEP 2: Multiply by city population to get total city demand
      * STEP 3: Apply cross-resource substitution based on price deviations
+     * STEP 3.5: Apply demand creation for below-average pricing
+     *           - Retailers pricing below city average create additional demand
+     *           - Dampened to minimum 5 retailers to prevent thin market exploitation
+     *           - Only one retailer per company counted to prevent gaming
      * STEP 4a: Calculate equal share allocation (for reference)
      * STEP 4b: Apply price sensitivity to adjust shares (avgPrice / price)^sensitivity
      * STEP 4c: First pass - each retailer fulfills their price-weighted share
@@ -102,6 +106,65 @@ export class City {
                     adjustedDemand.set(resB, Math.max(0, demandB - shiftAmount));
                     adjustedDemand.set(resA, (adjustedDemand.get(resA) || 0) + shiftAmount);
                 }
+            }
+        }
+
+        // STEP 3.5: Apply demand creation for below-average pricing
+        // When retailers price below city average, additional demand is created
+        for (const [resourceId, currentDemand] of adjustedDemand.entries()) {
+            const avgPrice = avgPrices.get(resourceId);
+            if (!avgPrice || avgPrice <= 0) continue;
+
+            const activeRetailers = retailers.filter(r => r.getPrice(resourceId) > 0);
+            if (activeRetailers.length === 0) continue;
+
+            // Get unique companies to prevent gaming (only count one retailer per company)
+            const uniqueCompanies = new Set(activeRetailers.map(r => r.ownerId));
+            const uniqueRetailers = Array.from(uniqueCompanies).map(ownerId => 
+                activeRetailers.find(r => r.ownerId === ownerId)!
+            );
+
+            // Calculate dampened average price (treat as if minimum 5 unique retailers)
+            // This prevents excessive demand creation in thin markets
+            const effectiveRetailerCount = Math.max(5, uniqueRetailers.length);
+            
+            // For dampening, blend actual prices with the average to simulate more retailers
+            const actualPrices = uniqueRetailers.map(r => r.getPrice(resourceId));
+            const dampenedPrices = [...actualPrices];
+            
+            // Add synthetic "average" retailers to reach minimum of 5
+            const syntheticRetailersNeeded = Math.max(0, effectiveRetailerCount - uniqueRetailers.length);
+            for (let i = 0; i < syntheticRetailersNeeded; i++) {
+                dampenedPrices.push(avgPrice);
+            }
+            
+            const dampenedAvgPrice = dampenedPrices.reduce((sum, p) => sum + p, 0) / dampenedPrices.length;
+
+            // Calculate demand creation for each retailer below dampened average
+            let totalCreatedDemand = 0;
+            for (const retailer of uniqueRetailers) {
+                const price = retailer.getPrice(resourceId);
+                
+                // Only create demand if price is below dampened average
+                if (price >= dampenedAvgPrice) continue;
+
+                const priceRatio = price / dampenedAvgPrice;
+                const sensitivity = INTER_RETAILER_SENSITIVITY[resourceId] || 1.0;
+
+                // Use power function similar to calculateDemandCreationFactor
+                // More aggressive than just redistribution, but still bounded
+                const creationFactor = Math.pow(1 / priceRatio, sensitivity * 0.8);
+                
+                // Created demand is a fraction of base demand, capped to prevent extreme values
+                const maxCreationMultiplier = Math.min(creationFactor - 1, 0.5); // Cap at 50% additional demand
+                const createdDemand = currentDemand * maxCreationMultiplier * 0.3; // 0.3 = dampening factor
+                
+                totalCreatedDemand += createdDemand;
+            }
+
+            // Add created demand to adjusted demand
+            if (totalCreatedDemand > 0) {
+                adjustedDemand.set(resourceId, currentDemand + totalCreatedDemand);
             }
         }
 
