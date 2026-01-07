@@ -1,7 +1,7 @@
 import { GameEngine } from './game/GameEngine.js';
 import { FacilityRegistry } from './game/FacilityRegistry.js';
 import { CityRegistry } from './game/CityRegistry.js';
-import { ResourceRegistry } from './game/ResourceRegistry.js';
+import { ResourceRegistry, DEFAULT_CONSUMPTION_RATES, RESOURCE_PRICE_RATIOS, INTER_RETAILER_SENSITIVITY } from './game/ResourceRegistry.js';
 import { RecipeRegistry } from './game/RecipeRegistry.js';
 import { ProductionFacility } from './game/ProductionFacility.js';
 import { StorageFacility } from './game/StorageFacility.js';
@@ -964,6 +964,246 @@ if (sellerFarm) {
   assert(
     buyerAfter2 > buyerBefore2,
     'Contract resumes when resources available again'
+  );
+}
+
+console.log('\n=== CROSS-RESOURCE SUBSTITUTION TEST (Phase 4) ===\n');
+
+// Test that consumers substitute between resources based on relative prices
+const substCompany = game.addCompany('substitution', 'Substitution Test Corp');
+const substOffice = substCompany.createFacility('office', copenhagen) as Office | null;
+const breadRetail = substCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+const flourRetail = substCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+
+if (breadRetail && flourRetail && substOffice) {
+  substOffice.setWorkerCount(100);
+  breadRetail.setWorkerCount(breadRetail.calculateRequiredWorkers());
+  flourRetail.setWorkerCount(flourRetail.calculateRequiredWorkers());
+  
+  // Add plenty of inventory
+  breadRetail.addResource('bread', 100000);
+  flourRetail.addResource('flour', 100000);
+  
+  // Set bread at VERY HIGH price, flour at normal price
+  // Reference ratios: bread=129, flour=47 → expected ratio = 2.74
+  // We'll set bread at $20 (high) and flour at $4 (normal)
+  // Actual ratio = 5.0, which is 82% higher than expected (2.74)
+  // This should cause significant substitution from bread to flour
+  breadRetail.setPrice('bread', 20.00);  // Very expensive
+  flourRetail.setPrice('flour', 4.00);   // Normal price
+  
+  const breadBefore = breadRetail.getResource('bread');
+  const flourBefore = flourRetail.getResource('flour');
+  
+  // Process several ticks to see substitution effect
+  for (let i = 0; i < 5; i++) {
+    game.processTick();
+  }
+  
+  const breadAfter = breadRetail.getResource('bread');
+  const flourAfter = flourRetail.getResource('flour');
+  
+  const breadSold = breadBefore - breadAfter;
+  const flourSold = flourBefore - flourAfter;
+  
+  // Base demands: bread 0.10, flour 0.03 per pop
+  // Expected base ratio: 0.10 / 0.03 = 3.33 (bread demand 3.33x flour)
+  // With substitution away from expensive bread, ratio should be lower
+  const actualRatio = breadSold / flourSold;
+  
+  assert(
+    breadSold > 0 && flourSold > 0,
+    `Both products sold: Bread=${breadSold.toFixed(0)}, Flour=${flourSold.toFixed(0)}`
+  );
+  assert(
+    actualRatio < 3.0,
+    `Substitution effect observed: Bread/Flour ratio ${actualRatio.toFixed(2)} < 3.0 (demand shifted to cheaper flour)`
+  );
+}
+
+console.log('\n=== SAME-LEVEL SUBSTITUTION TEST (Raw Materials) ===\n');
+
+// Test substitution between same-level resources (grain ↔ grapes both RAW, elasticity 0.7)
+const rawSubstCompany = game.addCompany('rawsubst', 'Raw Subst Corp');
+const rawOffice = rawSubstCompany.createFacility('office', prague) as Office | null;
+const grainRetail = rawSubstCompany.createFacility('retail', prague) as RetailFacility | null;
+const grapesRetail = rawSubstCompany.createFacility('retail', prague) as RetailFacility | null;
+
+if (grainRetail && grapesRetail && rawOffice) {
+  rawOffice.setWorkerCount(100);
+  grainRetail.setWorkerCount(grainRetail.calculateRequiredWorkers());
+  grapesRetail.setWorkerCount(grapesRetail.calculateRequiredWorkers());
+  
+  // Add inventory
+  grainRetail.addResource('grain', 10000);
+  grapesRetail.addResource('grapes', 10000);
+  
+  // Set grapes at HIGH price, grain at normal
+  // Reference: grain=60, grapes=75 → expected ratio = 0.80
+  // Set grain=$2 (cheap), grapes=$6 (3x normal ratio)
+  grainRetail.setPrice('grain', 2.00);
+  grapesRetail.setPrice('grapes', 6.00);
+  
+  const grainBefore = grainRetail.getResource('grain');
+  const grapesBefore = grapesRetail.getResource('grapes');
+  
+  // Process just 2 ticks to avoid selling out
+  for (let i = 0; i < 2; i++) {
+    game.processTick();
+  }
+  
+  const grainAfter = grainRetail.getResource('grain');
+  const grapesAfter = grapesRetail.getResource('grapes');
+  
+  const grainSold = grainBefore - grainAfter;
+  const grapesSold = grapesBefore - grapesAfter;
+  
+  // Base demands: grain 0.01, grapes 0.005 → ratio 2.0
+  // With high elasticity (0.7) and grapes expensive, expect even stronger shift to grain
+  assert(
+    grainSold > 0 && grapesSold > 0,
+    `Both raw materials sold: Grain=${grainSold.toFixed(0)}, Grapes=${grapesSold.toFixed(0)}`
+  );
+  assert(
+    grainSold > grapesSold * 2.5,
+    `Strong substitution to cheaper grain: ${grainSold.toFixed(0)} > ${(grapesSold * 2.5).toFixed(0)} (ratio ${(grainSold/grapesSold).toFixed(2)})`
+  );
+}
+
+console.log('\n=== DEMAND CALCULATION STEP-BY-STEP EXPLANATION ===\n');
+
+// Create a controlled scenario to demonstrate each step with actual numbers
+const stepCompany1 = game.addCompany('step1', 'Step Demo Corp 1');
+const stepCompany2 = game.addCompany('step2', 'Step Demo Corp 2');
+const stepCompany3 = game.addCompany('step3', 'Step Demo Corp 3');
+const stepOffice1 = stepCompany1.createFacility('office', prague) as Office | null;
+const stepOffice2 = stepCompany2.createFacility('office', prague) as Office | null;
+const stepOffice3 = stepCompany3.createFacility('office', prague) as Office | null;
+const stepRetail1 = stepCompany1.createFacility('retail', prague) as RetailFacility | null;
+const stepRetail2 = stepCompany2.createFacility('retail', prague) as RetailFacility | null;
+const stepRetail3 = stepCompany3.createFacility('retail', prague) as RetailFacility | null;
+
+if (stepRetail1 && stepRetail2 && stepRetail3 && stepOffice1 && stepOffice2 && stepOffice3) {
+  stepOffice1.setWorkerCount(100);
+  stepOffice2.setWorkerCount(100);
+  stepOffice3.setWorkerCount(100);
+  stepRetail1.setWorkerCount(stepRetail1.calculateRequiredWorkers());
+  stepRetail2.setWorkerCount(stepRetail2.calculateRequiredWorkers());
+  stepRetail3.setWorkerCount(stepRetail3.calculateRequiredWorkers());
+  
+  // Give HUGE inventory to retailers 1 & 2, but LIMITED inventory to retailer 3
+  stepRetail1.addResource('bread', 1000000);
+  stepRetail2.addResource('bread', 1000000);
+  stepRetail3.addResource('bread', 3000);  // Limited - will sell out in first pass
+  stepRetail1.addResource('flour', 1000000);
+  
+  // Set prices - bread expensive, flour cheap (to trigger substitution)
+  stepRetail1.setPrice('bread', 10.00);  // Cheap bread retailer
+  stepRetail2.setPrice('bread', 18.00);  // Expensive bread retailer
+  stepRetail3.setPrice('bread', 8.00);   // CHEAPEST - but will run out
+  stepRetail1.setPrice('flour', 4.00);   // Cheap flour
+  
+  const breadBefore1 = stepRetail1.getResource('bread');
+  const breadBefore2 = stepRetail2.getResource('bread');
+  const breadBefore3 = stepRetail3.getResource('bread');
+  const flourBefore = stepRetail1.getResource('flour');
+  
+  // Process ONE tick
+  game.processTick();
+  
+  const breadAfter1 = stepRetail1.getResource('bread');
+  const breadAfter2 = stepRetail2.getResource('bread');
+  const breadAfter3 = stepRetail3.getResource('bread');
+  const flourAfter = stepRetail1.getResource('flour');
+  
+  const breadSold1 = breadBefore1 - breadAfter1;
+  const breadSold2 = breadBefore2 - breadAfter2;
+  const breadSold3 = breadBefore3 - breadAfter3;
+  const flourSold = flourBefore - flourAfter;
+  const totalBreadSold = breadSold1 + breadSold2 + breadSold3;
+  
+  console.log('  STEP 1: Base consumption rate per capita');
+  console.log(`    Bread: ${DEFAULT_CONSUMPTION_RATES.bread} per person per tick`);
+  console.log(`    Flour: ${DEFAULT_CONSUMPTION_RATES.flour} per person per tick`);
+  
+  console.log('  ');
+  console.log('  STEP 2: Multiply by city population');
+  console.log(`    Prague population: ${prague.population.toLocaleString()}`);
+  const breadBaseDemand = prague.population * DEFAULT_CONSUMPTION_RATES.bread;
+  const flourBaseDemand = prague.population * DEFAULT_CONSUMPTION_RATES.flour;
+  console.log(`    Bread base demand: ${prague.population.toLocaleString()} × ${DEFAULT_CONSUMPTION_RATES.bread} = ${breadBaseDemand.toFixed(2)}`);
+  console.log(`    Flour base demand: ${prague.population.toLocaleString()} × ${DEFAULT_CONSUMPTION_RATES.flour} = ${flourBaseDemand.toFixed(2)}`);
+  
+  console.log('  ');
+  console.log('  STEP 3: Apply cross-resource substitution');
+  const avgBreadPrice = (10 + 18 + 8) / 3;
+  console.log(`    Bread prices: $10, $18, $8 → avg $${avgBreadPrice.toFixed(2)}`);
+  console.log(`    Flour price: $4.00`);
+  console.log(`    Reference ratios: Bread=${RESOURCE_PRICE_RATIOS.bread}, Flour=${RESOURCE_PRICE_RATIOS.flour}`);
+  console.log(`    Actual price ratio: ${(avgBreadPrice / 4).toFixed(2)}, Expected ratio: ${(RESOURCE_PRICE_RATIOS.bread / RESOURCE_PRICE_RATIOS.flour).toFixed(2)}`);
+  console.log(`    Bread is expensive relative to flour → demand shifts to flour`);
+  console.log(`    Bread sold (after substitution): ${totalBreadSold.toFixed(2)} (was ${breadBaseDemand.toFixed(2)})`);
+  console.log(`    Flour sold (after substitution): ${flourSold.toFixed(2)} (was ${flourBaseDemand.toFixed(2)})`);
+  const substitutionPercent = ((breadBaseDemand - totalBreadSold) / breadBaseDemand * 100);
+  console.log(`    → ${substitutionPercent.toFixed(1)}% of bread demand shifted away`);
+  
+  console.log('  ');
+  console.log('  STEP 4a: Equal share (reference)');
+  const equalShare = totalBreadSold / 3;
+  console.log(`    Would be: ${totalBreadSold.toFixed(2)} ÷ 3 retailers = ${equalShare.toFixed(2)} each`);
+  
+  console.log('  ');
+  console.log('  STEP 4b: Price sensitivity adjustment');
+  const sensitivity = INTER_RETAILER_SENSITIVITY.bread;
+  console.log(`    Bread sensitivity: ${sensitivity} (low - staple good, convenience matters)`);
+  console.log(`    Average price: $${avgBreadPrice.toFixed(2)}`);
+  const rawShare1 = Math.pow(avgBreadPrice / 10, sensitivity);
+  const rawShare2 = Math.pow(avgBreadPrice / 18, sensitivity);
+  const rawShare3 = Math.pow(avgBreadPrice / 8, sensitivity);
+  const totalRaw = rawShare1 + rawShare2 + rawShare3;
+  const normShare1 = rawShare1 / totalRaw;
+  const normShare2 = rawShare2 / totalRaw;
+  const normShare3 = rawShare3 / totalRaw;
+  console.log(`    Retailer1 ($10): (${avgBreadPrice.toFixed(2)}/10)^${sensitivity} = ${rawShare1.toFixed(3)} → ${(normShare1 * 100).toFixed(1)}% share`);
+  console.log(`    Retailer2 ($18): (${avgBreadPrice.toFixed(2)}/18)^${sensitivity} = ${rawShare2.toFixed(3)} → ${(normShare2 * 100).toFixed(1)}% share`);
+  console.log(`    Retailer3 ($8):  (${avgBreadPrice.toFixed(2)}/8)^${sensitivity} = ${rawShare3.toFixed(3)} → ${(normShare3 * 100).toFixed(1)}% share`);
+  const expectedSold1 = totalBreadSold * normShare1;
+  const expectedSold2 = totalBreadSold * normShare2;
+  const expectedSold3 = totalBreadSold * normShare3;
+  console.log(`    Expected: R1=${expectedSold1.toFixed(2)}, R2=${expectedSold2.toFixed(2)}, R3=${expectedSold3.toFixed(2)}`);
+  
+  console.log('  ');
+  console.log('  STEP 4c: First pass - each retailer fulfills their share');
+  console.log(`    Retailer1 ($10): ${breadSold1.toFixed(2)} sold (had plenty of stock)`);
+  console.log(`    Retailer2 ($18): ${breadSold2.toFixed(2)} sold (had plenty of stock)`);
+  console.log(`    Retailer3 ($8):  ${breadSold3.toFixed(2)} sold (wanted ${expectedSold3.toFixed(2)} but only had ${breadBefore3.toFixed(2)})`);
+  const unfulfilled = expectedSold3 - breadSold3;
+  console.log(`    → Retailer3 could not fulfill ${unfulfilled.toFixed(2)} units`);
+  
+  console.log('  ');
+  console.log('  STEP 4d: Second pass - redistribute unfulfilled demand');
+  const firstPassTotal = Math.min(expectedSold1, breadBefore1) + Math.min(expectedSold2, breadBefore2) + Math.min(expectedSold3, breadBefore3);
+  const secondPassAmount = totalBreadSold - firstPassTotal;
+  console.log(`    Unfulfilled demand: ${unfulfilled.toFixed(2)} units`);
+  console.log(`    Redistributed equally to retailers with stock (R1 & R2)`);
+  console.log(`    Each gets: ${(unfulfilled / 2).toFixed(2)} additional units`);
+  console.log(`    Total second pass: ${secondPassAmount.toFixed(2)} units redistributed`);
+  
+  // Verify cheapest retailer sold out
+  assert(
+    breadAfter3 === 0,
+    'Cheapest retailer ($8) sold out completely'
+  );
+  
+  // Verify substitution happened
+  assert(
+    totalBreadSold < breadBaseDemand * 0.95,
+    'Substitution effect: bread demand reduced by expensive prices'
+  );
+  
+  assert(
+    flourSold > flourBaseDemand * 1.05,
+    'Substitution effect: flour demand increased (cheaper alternative)'
   );
 }
 

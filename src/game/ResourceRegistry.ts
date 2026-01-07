@@ -23,16 +23,19 @@ export interface ResourceDefinition {
  * Rule: Finished goods > Intermediate products > Raw materials
  */
 export const DEFAULT_CONSUMPTION_RATES: Record<string, number> = {
-  grain: 0.01,   // Raw material - rarely consumed directly
-  flour: 0.03,   // Intermediate - sometimes used directly
-  bread: 0.10,   // Finished consumer good - primary consumption
-  grapes: 0.005, // Raw material - rarely consumed directly
-  wine: 0.08     // Finished consumer good - luxury beverage
+  grain: 0.001,   // Raw material - rarely consumed directly
+  flour: 0.003,   // Intermediate - sometimes used directly
+  bread: 0.010,   // Finished consumer good - primary consumption
+  grapes: 0.0005, // Raw material - rarely consumed directly
+  wine: 0.008,    // Finished consumer good - luxury beverage
+  sugar: 0.002,   // Intermediate - sometimes used directly
+  cake: 0.005     // Finished consumer good - luxury baked good
 };
 
 /**
  * Reference price ratios for resources - used for relative price comparison
  * These are NOT actual consumer prices, but baseline ratios for price elasticity calculations
+ * Used to determine "normal" price relationships between resources for substitution
  * 
  * Calculation basis (base wage = 1):
  * - Grain: (0 inputs + 1 wage × 2 ticks × 3 workers) / 10 output = 6/10 = 0.6 → Index: 60
@@ -40,13 +43,46 @@ export const DEFAULT_CONSUMPTION_RATES: Record<string, number> = {
  * - Bread: (20 flour × 0.47 + 1 wage × 1 tick × 3.5 workers) / 1 output = 12.9/1 = 12.9 → Index: 129
  * - Grapes: (0 inputs + 1 wage × 2 ticks × 3 workers) / 8 output = 6/8 = 0.75 → Index: 75
  * - Wine: (5 grapes × 0.75 + 1 wage × 2 ticks × 3 workers) / 1 output = 9.75/1 = 9.75 → Index: 98
+ * - Sugar: (0 inputs + 1 wage × 2 ticks × 3 workers) / 12 output = 6/12 = 0.5 → Index: 50
+ * - Cake: (10 flour × 0.47 + 5 sugar × 0.5 + 1 wage × 2 ticks × 3.5 workers) / 1 output = 14.2/1 = 14.2 → Index: 142
  */
 export const RESOURCE_PRICE_RATIOS: Record<string, number> = {
   grain: 60,
   flour: 47,
   bread: 129,
   grapes: 75,
-  wine: 98
+  wine: 98,
+  sugar: 50,
+  cake: 142
+};
+
+/**
+ * Cross-level substitution elasticity matrix
+ * Controls how readily consumers substitute between resources of different processing levels
+ * 
+ * Same level (raw↔raw): High elasticity - consumers easily switch grain for grapes
+ * Adjacent levels (raw↔intermediate): Low elasticity - harder to substitute grain for flour
+ * Distant levels (raw↔finished): Very low - rarely substitute grain for bread directly
+ * 
+ * Formula: demandShift = deviation × baseDemand × elasticity × 0.5 (dampening)
+ * Where deviation = (actualPriceRatio / referencePriceRatio) - 1
+ */
+export const CROSS_LEVEL_ELASTICITY: Record<ResourceLevel, Record<ResourceLevel, number>> = {
+  [ResourceLevel.RAW]: {
+    [ResourceLevel.RAW]: 0.7,           // High: grain ↔ grapes ↔ sugar
+    [ResourceLevel.INTERMEDIATE]: 0.2,  // Low: grain → flour
+    [ResourceLevel.FINISHED]: 0.1       // Very low: grain → bread
+  },
+  [ResourceLevel.INTERMEDIATE]: {
+    [ResourceLevel.RAW]: 0.2,           // Low: flour → grain
+    [ResourceLevel.INTERMEDIATE]: 0.6,  // High: flour ↔ sugar (both intermediate)
+    [ResourceLevel.FINISHED]: 0.3       // Medium: flour → bread
+  },
+  [ResourceLevel.FINISHED]: {
+    [ResourceLevel.RAW]: 0.1,           // Very low: bread → grain
+    [ResourceLevel.INTERMEDIATE]: 0.3,  // Medium: bread → flour
+    [ResourceLevel.FINISHED]: 0.5       // Medium-high: bread ↔ wine ↔ cake
+  }
 };
 
 /**
@@ -69,33 +105,9 @@ export const INTER_RETAILER_SENSITIVITY: Record<string, number> = {
   flour: 0.5,   // Intermediate - moderate comparison
   bread: 0.3,   // Staple - convenience dominates
   grapes: 0.4,  // Raw material - some price comparison  
-  wine: 1.8     // Luxury - high price comparison
-};
-
-/**
- * Cross-level substitution elasticity
- * How readily consumers substitute between different resource levels
- * 
- * Same level (raw↔raw): High - consumers easily switch grapes for grain
- * Adjacent levels (raw↔intermediate): Low - harder to substitute grain for flour
- * Distant levels (raw↔finished): Very low - rarely substitute grain for bread
- */
-export const CROSS_LEVEL_ELASTICITY: Record<string, Record<string, number>> = {
-  [ResourceLevel.RAW]: {
-    [ResourceLevel.RAW]: 0.7,           // High: grain ↔ grapes
-    [ResourceLevel.INTERMEDIATE]: 0.2,  // Low: grain → flour
-    [ResourceLevel.FINISHED]: 0.1       // Very low: grain → bread
-  },
-  [ResourceLevel.INTERMEDIATE]: {
-    [ResourceLevel.RAW]: 0.2,           // Low: flour → grain
-    [ResourceLevel.INTERMEDIATE]: 0.6,  // High: flour ↔ sugar
-    [ResourceLevel.FINISHED]: 0.3       // Medium: flour → bread
-  },
-  [ResourceLevel.FINISHED]: {
-    [ResourceLevel.RAW]: 0.1,           // Very low: bread → grain
-    [ResourceLevel.INTERMEDIATE]: 0.3,  // Medium: bread → flour
-    [ResourceLevel.FINISHED]: 0.5       // Medium-high: bread ↔ wine ↔ cake
-  }
+  wine: 1.8,    // Luxury - high price comparison
+  sugar: 0.4,   // Intermediate - some price comparison
+  cake: 1.2     // Luxury dessert - moderate-high comparison
 };
 
 /**
@@ -121,6 +133,15 @@ export class ResourceRegistry {
       description: 'Fresh grapes for wine production',
       icon: '🍇',
       weight: 0.9,
+      level: ResourceLevel.RAW
+    });
+
+    this.register({
+      id: 'sugar',
+      name: 'Sugar',
+      description: 'Sweet crystals refined from crops',
+      icon: '🍬',
+      weight: 0.7,
       level: ResourceLevel.RAW
     });
 
@@ -150,6 +171,15 @@ export class ResourceRegistry {
       description: 'Fine wine made from grapes',
       icon: '🍷',
       weight: 1.2,
+      level: ResourceLevel.FINISHED
+    });
+
+    this.register({
+      id: 'cake',
+      name: 'Cake',
+      description: 'Delicious sweet cake',
+      icon: '🍰',
+      weight: 1.3,
       level: ResourceLevel.FINISHED
     });
   }

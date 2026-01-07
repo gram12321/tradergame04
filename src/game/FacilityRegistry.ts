@@ -35,7 +35,7 @@ export class FacilityRegistry {
       cost: 1000,
       workerMultiplier: 3.0,
       capacityMultiplier: 1.0, // Base capacity
-      allowedRecipes: ['Grow Grain', 'Grow Grapes'],
+      allowedRecipes: ['Grow Grain', 'Grow Grapes', 'Grow Sugar'],
       defaultRecipe: 'Grow Grain',
       description: 'Produces grain from the land'
     });
@@ -53,7 +53,7 @@ export class FacilityRegistry {
       description: 'Processes grain into flour'
     });
 
-    // Bakery - processes flour into bread
+    // Bakery - processes flour into bread and cake
     this.register({
       type: 'bakery',
       name: 'Bakery',
@@ -61,7 +61,7 @@ export class FacilityRegistry {
       cost: 2000,
       workerMultiplier: 2.0,
       capacityMultiplier: 2.0, // 2x capacity
-      allowedRecipes: ['Bake Bread'],
+      allowedRecipes: ['Bake Bread', 'Bake Cake'],
       defaultRecipe: 'Bake Bread',
       description: 'Bakes flour into bread'
     });

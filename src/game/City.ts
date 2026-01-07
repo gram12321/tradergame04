@@ -1,4 +1,4 @@
-import { DEFAULT_CONSUMPTION_RATES, INTER_RETAILER_SENSITIVITY } from './ResourceRegistry.js';
+import { DEFAULT_CONSUMPTION_RATES, INTER_RETAILER_SENSITIVITY, CROSS_LEVEL_ELASTICITY, RESOURCE_PRICE_RATIOS, ResourceLevel, ResourceRegistry } from './ResourceRegistry.js';
 import type { RetailFacility } from './RetailFacility.js';
 
 export class City {
@@ -18,24 +18,103 @@ export class City {
 
     /**
      * Process retail demand for this city
-     * Calculates demand for each resource and distributes sales among retailers
+     * 
+     * STEP 1: Calculate base demand per resource (consumption rate per capita)
+     * STEP 2: Multiply by city population to get total city demand
+     * STEP 3: Apply cross-resource substitution based on price deviations
+     * STEP 4a: Calculate equal share allocation (for reference)
+     * STEP 4b: Apply price sensitivity to adjust shares (avgPrice / price)^sensitivity
+     * STEP 4c: First pass - each retailer fulfills their price-weighted share
+     * STEP 4d: Second pass - redistribute unfulfilled demand among remaining retailers
+     * 
      * @param retailers All retail facilities in this city
      */
     processRetailDemand(retailers: RetailFacility[]): void {
         if (retailers.length === 0) return;
 
-        // Process each resource that has consumer demand
+        // STEP 1 & 2: Calculate base demand (consumption rate × population)
+        const baseDemand = new Map<string, number>();
+        const avgPrices = new Map<string, number>();
+        
         for (const [resourceId, consumptionRate] of Object.entries(DEFAULT_CONSUMPTION_RATES)) {
             if (consumptionRate <= 0) continue;
+            
+            baseDemand.set(resourceId, this.population * consumptionRate);
+            
+            // Calculate average retail price for this resource
+            const activeRetailers = retailers.filter(r => r.getPrice(resourceId) > 0);
+            if (activeRetailers.length > 0) {
+                const avgPrice = activeRetailers.reduce((sum, r) => sum + r.getPrice(resourceId), 0) / activeRetailers.length;
+                avgPrices.set(resourceId, avgPrice);
+            }
+        }
 
-            // Calculate total demand for this resource in this city
-            const totalDemand = this.population * consumptionRate;
+        // STEP 3: Apply cross-resource substitution based on price deviations
+        const adjustedDemand = new Map(baseDemand); // Start with base demand
+        
+        const resources = Array.from(baseDemand.keys());
+        for (let i = 0; i < resources.length; i++) {
+            for (let j = i + 1; j < resources.length; j++) {
+                const resA = resources[i];
+                const resB = resources[j];
+                
+                const priceA = avgPrices.get(resA);
+                const priceB = avgPrices.get(resB);
+                
+                // Skip if either resource has no price
+                if (!priceA || !priceB) continue;
+                
+                // Get resource levels for elasticity lookup
+                const levelA = ResourceRegistry.get(resA)?.level;
+                const levelB = ResourceRegistry.get(resB)?.level;
+                if (!levelA || !levelB) continue;
+                
+                // Get cross-level elasticity
+                const elasticity = CROSS_LEVEL_ELASTICITY[levelA][levelB];
+                if (elasticity <= 0) continue;
+                
+                // Get reference price ratios
+                const ratioA = RESOURCE_PRICE_RATIOS[resA];
+                const ratioB = RESOURCE_PRICE_RATIOS[resB];
+                if (!ratioA || !ratioB) continue;
+                
+                // Calculate actual and expected price ratios
+                const actualRatio = priceA / priceB;
+                const referenceRatio = ratioA / ratioB;
+                
+                // Only substitute if deviation is significant (> 2%)
+                const deviation = Math.abs((actualRatio / referenceRatio) - 1);
+                if (deviation < 0.02) continue;
+                
+                // Determine which resource is relatively expensive
+                if (actualRatio > referenceRatio) {
+                    // Resource A is expensive relative to B → shift demand from A to B
+                    const demandA = adjustedDemand.get(resA) || 0;
+                    const shiftAmount = demandA * deviation * elasticity * 0.5; // 0.5 = dampening
+                    
+                    adjustedDemand.set(resA, Math.max(0, demandA - shiftAmount));
+                    adjustedDemand.set(resB, (adjustedDemand.get(resB) || 0) + shiftAmount);
+                } else {
+                    // Resource B is expensive relative to A → shift demand from B to A
+                    const demandB = adjustedDemand.get(resB) || 0;
+                    const shiftAmount = demandB * deviation * elasticity * 0.5; // 0.5 = dampening
+                    
+                    adjustedDemand.set(resB, Math.max(0, demandB - shiftAmount));
+                    adjustedDemand.set(resA, (adjustedDemand.get(resA) || 0) + shiftAmount);
+                }
+            }
+        }
+
+        // STEP 4: Distribute adjusted demand among retailers
+        for (const [resourceId, totalDemand] of adjustedDemand.entries()) {
+            if (totalDemand <= 0) continue;
 
             // Filter retailers that have this resource priced
             const activeRetailers = retailers.filter(r => r.getPrice(resourceId) > 0);
             if (activeRetailers.length === 0) continue;
 
-            // Price-weighted distribution based on inter-retailer sensitivity
+            // STEP 4a: Equal share would be totalDemand / activeRetailers.length
+            // STEP 4b: Price-weighted distribution based on inter-retailer sensitivity
             const sensitivity = INTER_RETAILER_SENSITIVITY[resourceId] || 1.0;
             
             // Calculate average price across all retailers
@@ -54,7 +133,7 @@ export class City {
             // Calculate demand per retailer
             const demandShares = normalizedShares.map(share => totalDemand * share);
 
-            // First pass: each retailer tries to fulfill their share
+            // STEP 4c: First pass - each retailer tries to fulfill their share
             const unfulfilled: number[] = [];
             for (let i = 0; i < activeRetailers.length; i++) {
                 const retailer = activeRetailers[i];
@@ -66,7 +145,7 @@ export class City {
                 unfulfilled.push(demandShare - sold);
             }
 
-            // Second pass: redistribute unfulfilled demand to retailers with remaining inventory
+            // STEP 4d: Second pass - redistribute unfulfilled demand
             const totalUnfulfilled = unfulfilled.reduce((sum, val) => sum + val, 0);
             if (totalUnfulfilled > 0) {
                 const retailersWithInventory = activeRetailers.filter(r => r.getResource(resourceId) > 0);

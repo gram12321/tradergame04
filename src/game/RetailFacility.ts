@@ -108,13 +108,12 @@ export class RetailFacility extends FacilityBase {
     if (!this.inventory) return list;
     
     this.inventory.forEach((quantity, resourceId) => {
-      const resourceDef = ResourceRegistry.get(resourceId);
-      const basePrice = resourceDef?.basePrice || 0;
+      const price = this.getPrice(resourceId);
       
       list.push({
         resource: resourceId,
         quantity: quantity,
-        value: quantity * basePrice
+        value: quantity * price
       });
     });
     
