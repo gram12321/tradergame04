@@ -10,6 +10,7 @@ import { City } from './City.js';
 export class RetailFacility extends FacilityBase {
   revenue: number; // Track revenue generated this tick
   prices: Map<string, number>; // Price per resource set by owner
+  salesThisTick: Map<string, number>; // Track units sold per resource this tick
 
   constructor(type: string, ownerId: string, name: string, city: City) {
     super(type, ownerId, name, city);
@@ -17,6 +18,7 @@ export class RetailFacility extends FacilityBase {
     this.cachedMaxInventoryCapacity = 0;
     this.revenue = 0;
     this.prices = new Map();
+    this.salesThisTick = new Map();
     // Set workers after all properties are initialized
     this.workers = this.calculateRequiredWorkers();
   }
@@ -57,6 +59,11 @@ export class RetailFacility extends FacilityBase {
       this.removeResource(resourceId, actualSold);
       const revenue = actualSold * price;
       this.revenue += revenue;
+      
+      // Track sales for this tick
+      const currentSales = this.salesThisTick.get(resourceId) || 0;
+      this.salesThisTick.set(resourceId, currentSales + actualSold);
+      
       return revenue;
     }
     
@@ -64,11 +71,12 @@ export class RetailFacility extends FacilityBase {
   }
 
   /**
-   * Process one tick - resets revenue counter
+   * Process one tick - resets revenue and sales counters
    * Actual sales are handled by city demand processing
    */
   processTick(): void {
     this.revenue = 0;
+    this.salesThisTick.clear();
     this.updateInventoryCapacityForTick();
   }
 
@@ -118,5 +126,20 @@ export class RetailFacility extends FacilityBase {
     });
     
     return list;
+  }
+
+  /**
+   * Get sales report for the last tick
+   * @returns Map of resource ID to units sold
+   */
+  getSalesThisTick(): Map<string, number> {
+    return new Map(this.salesThisTick);
+  }
+
+  /**
+   * Get total units sold for a specific resource this tick
+   */
+  getSoldAmount(resourceId: string): number {
+    return this.salesThisTick.get(resourceId) || 0;
   }
 }

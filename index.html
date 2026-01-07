@@ -254,6 +254,7 @@
         <div class="facilities-info" id="facilitiesInfo"></div>
         <div class="facilities-info" id="resourcesInfo"></div>
         <div class="facilities-info" id="citiesInfo"></div>
+        <div class="facilities-info" id="demandSalesInfo"></div>
         
         <div class="message-log" id="messageLog">
             <div class="message info">Game initialized. Ready to play!</div>
@@ -535,7 +536,7 @@
     <script type="module">
         import { GameEngine } from './dist/game/GameEngine.js';
         import { FacilityRegistry } from './dist/game/FacilityRegistry.js';
-        import { ResourceRegistry } from './dist/game/ResourceRegistry.js';
+        import { ResourceRegistry, DEFAULT_CONSUMPTION_RATES } from './dist/game/ResourceRegistry.js';
         import { RecipeRegistry } from './dist/game/RecipeRegistry.js';
         import { CityRegistry } from './dist/game/CityRegistry.js';
         import { AdminFunctions } from './dist/game/adminFunctions.js';
@@ -954,6 +955,53 @@
             }
         };
 
+        function updateDemandSalesDisplay() {
+            const cities = CityRegistry.getAllCities();
+            let display = '📊 CITY DEMAND & RETAIL SALES:\n\n';
+            
+            for (const city of cities) {
+                display += `🏙️ ${city.name} (Pop: ${city.population.toLocaleString()})\n`;
+                
+                // Get all retail facilities in this city
+                const allCompanies = [alice, bob];
+                const retailers = [];
+                for (const company of allCompanies) {
+                    for (const facility of company.facilities) {
+                        if (facility.type === 'retail' && facility.city.name === city.name) {
+                            retailers.push(facility);
+                        }
+                    }
+                }
+                
+                if (retailers.length === 0) {
+                    display += '  No retail facilities in this city\n\n';
+                    continue;
+                }
+                
+                // Get the report from the City object
+                const report = city.getDemandSalesReport(retailers);
+                
+                // Display each resource
+                for (const [resourceId, data] of report.resources.entries()) {
+                    display += `  ${resourceId.toUpperCase()}:\n`;
+                    display += `    Base Demand: ${data.baseDemand.toFixed(2)} units/tick (${data.consumptionRate.toFixed(4)} per capita)\n`;
+                    display += `    Total Sales: ${data.totalSales.toFixed(2)} units (${(data.fulfillmentRate * 100).toFixed(1)}% of base demand)\n`;
+                    
+                    for (const retailer of data.retailers) {
+                        const companyName = retailer.ownerId === 'alice' ? 'Alice Corp' : 'Bob Industries';
+                        display += `      • ${companyName} - ${retailer.facilityName}: `;
+                        display += `${retailer.sales.toFixed(2)} units @ $${retailer.price.toFixed(2)} `;
+                        display += `= $${retailer.revenue.toFixed(2)} revenue `;
+                        display += `(${(retailer.marketShare * 100).toFixed(1)}% share, ${retailer.currentStock.toFixed(0)} in stock)\n`;
+                    }
+                    
+                    display += '\n';
+                }
+            }
+            
+            document.getElementById('demandSalesInfo').textContent = display;
+        }
+
         function updateDisplay() {
             // Update tick counter
             const output = document.getElementById('output');
@@ -969,6 +1017,9 @@
             // Update current company's info
             const currentCompany = getCurrentCompany();
             updateCurrentCompanyDisplay(currentCompany);
+            
+            // Update demand and sales statistics
+            updateDemandSalesDisplay();
         }
 
         function updateCurrentCompanyDisplay(company) {

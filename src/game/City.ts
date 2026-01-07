@@ -164,6 +164,108 @@ export class City {
     }
 
     /**
+     * Get demand and sales report for this city
+     * @param retailers All retail facilities in this city
+     * @returns Report containing base demand, total sales, and per-retailer breakdown
+     */
+    getDemandSalesReport(retailers: RetailFacility[]): {
+        city: string;
+        population: number;
+        resources: Map<string, {
+            baseDemand: number;
+            consumptionRate: number;
+            totalSales: number;
+            fulfillmentRate: number;
+            retailers: Array<{
+                facilityId: string;
+                facilityName: string;
+                ownerId: string;
+                price: number;
+                sales: number;
+                revenue: number;
+                currentStock: number;
+                marketShare: number;
+            }>;
+        }>;
+    } {
+        const resourcesReport = new Map();
+        
+        // Get all resources being sold in this city
+        const resourcesInCity = new Set<string>();
+        for (const retailer of retailers) {
+            for (const [resourceId] of retailer.prices.entries()) {
+                if (retailer.getPrice(resourceId) > 0) {
+                    resourcesInCity.add(resourceId);
+                }
+            }
+        }
+        
+        // Build report for each resource
+        for (const resourceId of resourcesInCity) {
+            const consumptionRate = DEFAULT_CONSUMPTION_RATES[resourceId] || 0;
+            const baseDemand = this.population * consumptionRate;
+            
+            let totalSales = 0;
+            const retailerData: Array<{
+                facilityId: string;
+                facilityName: string;
+                ownerId: string;
+                price: number;
+                sales: number;
+                revenue: number;
+                currentStock: number;
+                marketShare: number;
+            }> = [];
+            
+            // Collect data from each retailer
+            for (const retailer of retailers) {
+                const price = retailer.getPrice(resourceId);
+                if (price === 0) continue;
+                
+                const sales = retailer.getSoldAmount(resourceId);
+                const revenue = sales * price;
+                const currentStock = retailer.getResource(resourceId);
+                
+                totalSales += sales;
+                retailerData.push({
+                    facilityId: retailer.id,
+                    facilityName: retailer.name,
+                    ownerId: retailer.ownerId,
+                    price,
+                    sales,
+                    revenue,
+                    currentStock,
+                    marketShare: 0 // Will be calculated after totalSales is known
+                });
+            }
+            
+            // Calculate market shares
+            for (const data of retailerData) {
+                data.marketShare = totalSales > 0 ? (data.sales / totalSales) : 0;
+            }
+            
+            // Sort by sales (descending)
+            retailerData.sort((a, b) => b.sales - a.sales);
+            
+            const fulfillmentRate = baseDemand > 0 ? (totalSales / baseDemand) : 0;
+            
+            resourcesReport.set(resourceId, {
+                baseDemand,
+                consumptionRate,
+                totalSales,
+                fulfillmentRate,
+                retailers: retailerData
+            });
+        }
+        
+        return {
+            city: this.name,
+            population: this.population,
+            resources: resourcesReport
+        };
+    }
+
+    /**
      * Returns a formatted display string for this city
      */
     toString(): string {
