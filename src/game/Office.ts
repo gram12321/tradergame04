@@ -21,14 +21,19 @@ export class Office extends FacilityBase {
 
   /**
    * Calculate required workers based on administrative load
-   * Formula: ceil(administrativeLoad / 100)
-   * Every $100 of controlled facility wages requires 1 office worker
+   * Formula: ceil((administrativeLoad / 50)^1.2)
+   * Diminishing returns: each additional worker handles less load
+   * - $50 load = 1 worker
+   * - $100 load = 2 workers
+   * - $200 load = 3 workers
+   * - $400 load = 5 workers
+   * - $800 load = 9 workers
    */
   calculateRequiredWorkers(): number {
     if (this.administrativeLoad === 0) {
       return 1; // Minimum 1 worker even with no load
     }
-    return Math.ceil(this.administrativeLoad / 100);
+    return Math.ceil(Math.pow(this.administrativeLoad / 50, 1.2));
   }
 
   /**
@@ -82,6 +87,7 @@ export class Office extends FacilityBase {
    * Get office status string
    */
   getStatus(): string {
-    return `[${this.name}] Administrative | Load: $${this.administrativeLoad.toFixed(2)} | Controlling: ${this.controlledFacilityIds.size} facilities`;
+    const requiredWorkers = this.calculateRequiredWorkers();
+    return `[${this.name}] Administrative | Load: $${this.administrativeLoad.toFixed(2)} | Required Workers: ${requiredWorkers} | Controlling: ${this.controlledFacilityIds.size} facilities`;
   }
 }

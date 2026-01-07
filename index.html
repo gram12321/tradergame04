@@ -1056,17 +1056,15 @@
                     sizeInfo = `Size: ${facility.size} | Workers: ${facility.workers}/${requiredWorkers} | Effectivity: ${facility.effectivity.toFixed(2)}`;
                 }
                 
-                // Get facility status and inventory (only for facilities with inventory)
-                let statusStr = 'N/A';
+                // Get facility status using getStatus() method
+                const statusStr = facility.getStatus();
+                
+                // Get recipe and inventory (only for facilities with inventory)
                 let recipeName = 'N/A';
                 let inventoryStr = 'N/A';
                 
                 if (facility.inventory) {
                     // Production or Storage facility
-                    statusStr = facility.isProducing 
-                        ? `Producing (${facility.productionProgress}/${facility.recipe?.ticksRequired || 0})` 
-                        : 'Idle';
-                    
                     recipeName = facility.recipe ? facility.recipe.name : 'No recipe';
                     
                     // Get inventory with emojis
@@ -1083,7 +1081,6 @@
                     inventoryStr = inventoryItems || 'empty';
                 } else {
                     // Office - no inventory
-                    statusStr = 'Administrative';
                     recipeName = 'N/A (Office)';
                     inventoryStr = 'N/A (Office)';
                 }
