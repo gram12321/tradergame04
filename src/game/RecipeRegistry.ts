@@ -15,6 +15,13 @@ export class RecipeRegistry {
       2 // Takes 2 ticks
     ));
 
+    this.register(new Recipe(
+      'Grow Grapes',
+      [], // No inputs
+      [{ resource: 'grapes', amount: 8 }],
+      2 // Takes 2 ticks
+    ));
+
     // Mill recipes
     this.register(new Recipe(
       'Make Flour',
@@ -29,6 +36,14 @@ export class RecipeRegistry {
       [{ resource: 'flour', amount: 20 }],
       [{ resource: 'bread', amount: 1 }],
       1 // Takes 1 tick
+    ));
+
+    // Winery recipes
+    this.register(new Recipe(
+      'Make Wine',
+      [{ resource: 'grapes', amount: 5 }],
+      [{ resource: 'wine', amount: 1 }],
+      2 // Takes 2 ticks
     ));
   }
 

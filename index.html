@@ -301,6 +301,7 @@
                     <option value="bakery">Bakery ($2000)</option>
                     <option value="warehouse">Warehouse ($500)</option>
                     <option value="retail">Retail ($1800)</option>
+                    <option value="winery">Winery ($1800)</option>
                 </select>
                 <label>City:</label>
                 <select id="currentFacilityCity">
@@ -322,6 +323,21 @@
                 <button onclick="toggleForm('currentCancel')">Cancel Offer/Contract</button>
                 <button onclick="toggleForm('currentDestroy')">Destroy Facility</button>
                 <button onclick="toggleForm('currentSetRetailPrice')">Set Retail Price</button>
+                <button onclick="toggleForm('currentChangeRecipe')">Change Recipe</button>
+            </div>
+            
+            <div id="currentChangeRecipe" class="action-form">
+                <div class="form-row">
+                    <label>Select Facility:</label>
+                    <select id="currentChangeRecipeFacility">
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>New Recipe:</label>
+                    <select id="currentChangeRecipeType">
+                    </select>
+                </div>
+                <button onclick="executeChangeRecipe()">Change Recipe</button>
             </div>
             
             <div id="currentDestroy" class="action-form">
@@ -520,6 +536,7 @@
         import { GameEngine } from './dist/game/GameEngine.js';
         import { FacilityRegistry } from './dist/game/FacilityRegistry.js';
         import { ResourceRegistry } from './dist/game/ResourceRegistry.js';
+        import { RecipeRegistry } from './dist/game/RecipeRegistry.js';
         import { CityRegistry } from './dist/game/CityRegistry.js';
         import { AdminFunctions } from './dist/game/adminFunctions.js';
 
@@ -532,6 +549,10 @@
         // Make functions globally available
         window.game = game;
         window.alice = alice;
+        window.FacilityRegistry = FacilityRegistry;
+        window.ResourceRegistry = ResourceRegistry;
+        window.RecipeRegistry = RecipeRegistry;
+        window.CityRegistry = CityRegistry;
         window.bob = bob;
 
         function addMessage(text, type = 'info') {
@@ -626,6 +647,8 @@
             } else if (formId.includes('SetRetailPrice')) {
                 updateRetailFacilityDropdown('current', company);
                 updateResourceDropdowns('currentRetailResource');
+            } else if (formId.includes('ChangeRecipe')) {
+                updateChangeRecipeDropdown('current');
             }
         }
 
@@ -1800,6 +1823,93 @@
                 updateDisplay();
             } else {
                 addMessage('❌ Cheat failed!', 'error');
+            }
+        };
+
+        window.updateChangeRecipeDropdown = function(prefix) {
+            const company = getCurrentCompany();
+            const select = document.getElementById(`${prefix}ChangeRecipeFacility`);
+            const recipeSelect = document.getElementById(`${prefix}ChangeRecipeType`);
+            
+            select.innerHTML = '';
+            recipeSelect.innerHTML = '';
+            
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+            
+            // Filter to only production facilities with multiple recipes
+            const productionFacilities = company.facilities.filter(f => {
+                const def = FacilityRegistry.get(f.type);
+                return def && def.allowedRecipes && def.allowedRecipes.length > 1;
+            });
+            
+            if (productionFacilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities with multiple recipes</option>';
+                return;
+            }
+            
+            productionFacilities.forEach((facility, index) => {
+                const actualIndex = company.facilities.indexOf(facility);
+                const option = document.createElement('option');
+                option.value = actualIndex;
+                const recipeName = facility.recipe ? facility.recipe.name : 'None';
+                option.textContent = `${facility.name} (${recipeName})`;
+                select.appendChild(option);
+            });
+            
+            // Set up change handler to update recipe list
+            select.onchange = function() {
+                const facilityIndex = parseInt(this.value);
+                if (isNaN(facilityIndex)) return;
+                
+                const facility = company.facilities[facilityIndex];
+                const def = FacilityRegistry.get(facility.type);
+                recipeSelect.innerHTML = '';
+                
+                if (def && def.allowedRecipes) {
+                    def.allowedRecipes.forEach(recipeName => {
+                        const recipe = RecipeRegistry.get(recipeName);
+                        if (recipe) {
+                            const option = document.createElement('option');
+                            option.value = recipeName;
+                            const isCurrent = facility.recipe && facility.recipe.name === recipeName;
+                            option.textContent = `${recipeName}${isCurrent ? ' (current)' : ''}`;
+                            recipeSelect.appendChild(option);
+                        }
+                    });
+                }
+            };
+            
+            // Trigger initial display
+            select.onchange();
+        };
+
+        window.executeChangeRecipe = function() {
+            const company = getCurrentCompany();
+            const facilityIndex = parseInt(document.getElementById('currentChangeRecipeFacility').value);
+            const recipeName = document.getElementById('currentChangeRecipeType').value;
+            
+            if (isNaN(facilityIndex) || !recipeName) {
+                addMessage('Invalid facility or recipe!', 'error');
+                return;
+            }
+            
+            const facility = company.facilities[facilityIndex];
+            const recipe = RecipeRegistry.get(recipeName);
+            
+            if (!recipe) {
+                addMessage(`❌ Recipe "${recipeName}" not found!`, 'error');
+                return;
+            }
+            
+            if (facility.setRecipe && facility.setRecipe(recipe)) {
+                addMessage(`✅ Changed ${facility.name}'s recipe to "${recipeName}"`, 'success');
+                toggleForm('currentChangeRecipe');
+                updateDisplay();
+            } else {
+                addMessage(`❌ Failed to change recipe. This facility may not support recipe "${recipeName}".`, 'error');
             }
         };
 

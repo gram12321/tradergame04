@@ -35,7 +35,7 @@ export class FacilityRegistry {
       cost: 1000,
       workerMultiplier: 3.0,
       capacityMultiplier: 1.0, // Base capacity
-      allowedRecipes: ['Grow Grain'],
+      allowedRecipes: ['Grow Grain', 'Grow Grapes'],
       defaultRecipe: 'Grow Grain',
       description: 'Produces grain from the land'
     });
@@ -64,6 +64,19 @@ export class FacilityRegistry {
       allowedRecipes: ['Bake Bread'],
       defaultRecipe: 'Bake Bread',
       description: 'Bakes flour into bread'
+    });
+
+    // Winery - processes grapes into wine
+    this.register({
+      type: 'winery',
+      name: 'Winery',
+      category: 'production',
+      cost: 1800,
+      workerMultiplier: 2.3,
+      capacityMultiplier: 1.8, // 1.8x capacity
+      allowedRecipes: ['Make Wine'],
+      defaultRecipe: 'Make Wine',
+      description: 'Produces wine from grapes'
     });
 
     // Warehouse - storage only, no production

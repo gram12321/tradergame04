@@ -1,4 +1,4 @@
-import { DEFAULT_CONSUMPTION_RATES } from './ResourceRegistry.js';
+import { DEFAULT_CONSUMPTION_RATES, INTER_RETAILER_SENSITIVITY } from './ResourceRegistry.js';
 import type { RetailFacility } from './RetailFacility.js';
 
 export class City {
@@ -35,14 +35,31 @@ export class City {
             const activeRetailers = retailers.filter(r => r.getPrice(resourceId) > 0);
             if (activeRetailers.length === 0) continue;
 
-            // Equal share distribution
-            const demandShare = totalDemand / activeRetailers.length;
+            // Price-weighted distribution based on inter-retailer sensitivity
+            const sensitivity = INTER_RETAILER_SENSITIVITY[resourceId] || 1.0;
+            
+            // Calculate average price across all retailers
+            const avgPrice = activeRetailers.reduce((sum, r) => sum + r.getPrice(resourceId), 0) / activeRetailers.length;
+            
+            // Calculate price-weighted shares: (avgPrice / retailPrice)^sensitivity
+            const rawShares = activeRetailers.map(r => {
+                const price = r.getPrice(resourceId);
+                return Math.pow(avgPrice / price, sensitivity);
+            });
+            
+            // Normalize shares to sum to 1
+            const totalRawShares = rawShares.reduce((sum, val) => sum + val, 0);
+            const normalizedShares = rawShares.map(share => share / totalRawShares);
+            
+            // Calculate demand per retailer
+            const demandShares = normalizedShares.map(share => totalDemand * share);
 
             // First pass: each retailer tries to fulfill their share
             const unfulfilled: number[] = [];
             for (let i = 0; i < activeRetailers.length; i++) {
                 const retailer = activeRetailers[i];
                 const available = retailer.getResource(resourceId);
+                const demandShare = demandShares[i];
                 const sold = Math.min(demandShare, available);
                 
                 retailer.executeSale(resourceId, sold);

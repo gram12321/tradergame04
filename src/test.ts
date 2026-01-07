@@ -307,7 +307,100 @@ if (prodFarm && prodOffice) {
     `Refund received: $${degradeRefund.toFixed(2)}`
   );
 }
+console.log('\n=== RECIPE SWITCHING TEST ===\n');
 
+// Test that Farm can switch between Grow Grain and Grow Grapes
+const recipeSwitchCompany = game.addCompany('recipeswitch', 'Recipe Switch Corp');
+const recipeSwitchOffice = recipeSwitchCompany.createFacility('office', copenhagen) as Office | null;
+const recipeSwitchFarm = recipeSwitchCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
+
+if (recipeSwitchFarm && recipeSwitchOffice) {
+  recipeSwitchOffice.setWorkerCount(100);
+  recipeSwitchFarm.setWorkerCount(recipeSwitchFarm.calculateRequiredWorkers());
+  
+  // Start with grain (default)
+  const grainRecipe = RecipeRegistry.get('Grow Grain');
+  assert(recipeSwitchFarm.recipe?.name === 'Grow Grain', 'Farm starts with Grow Grain recipe (default)');
+  
+  // Produce grain
+  for (let i = 0; i < 3; i++) {
+    game.processTick();
+  }
+  const grainProduced = recipeSwitchFarm.getResource('grain');
+  assert(grainProduced > 0, `Farm produced grain: ${grainProduced.toFixed(1)}`);
+  
+  // Switch to grapes
+  const grapesRecipe = RecipeRegistry.get('Grow Grapes');
+  if (grapesRecipe) {
+    const switched = recipeSwitchFarm.setRecipe(grapesRecipe);
+    assert(switched, 'Successfully switched recipe to Grow Grapes');
+    assert(recipeSwitchFarm.recipe?.name === 'Grow Grapes', 'Recipe is now Grow Grapes');
+    
+    // Produce grapes
+    for (let i = 0; i < 3; i++) {
+      game.processTick();
+    }
+    const grapesProduced = recipeSwitchFarm.getResource('grapes');
+    assert(grapesProduced > 0, `Farm produced grapes: ${grapesProduced.toFixed(1)}`);
+    
+    // Verify grain production stopped
+    const grainAfter = recipeSwitchFarm.getResource('grain');
+    assert(
+      grainAfter === grainProduced,
+      `Grain production stopped after recipe change: ${grainProduced.toFixed(1)} === ${grainAfter.toFixed(1)}`
+    );
+  }
+}
+
+console.log('\n=== WINERY PRODUCTION TEST ===\n');
+
+const wineryCompany = game.addCompany('winery', 'Winery Corp');
+const wineryOffice = wineryCompany.createFacility('office', aarhus) as Office | null;
+const wineryFarm = wineryCompany.createFacility('farm', aarhus) as ProductionFacility | null;
+const winery = wineryCompany.createFacility('winery', aarhus) as ProductionFacility | null;
+
+if (winery && wineryFarm && wineryOffice) {
+  wineryOffice.setWorkerCount(100);
+  wineryFarm.setWorkerCount(wineryFarm.calculateRequiredWorkers());
+  winery.setWorkerCount(winery.calculateRequiredWorkers());
+  
+  // Set farm to produce grapes
+  const grapesRecipe = RecipeRegistry.get('Grow Grapes');
+  if (grapesRecipe) {
+    wineryFarm.setRecipe(grapesRecipe);
+    
+    // Produce grapes
+    for (let i = 0; i < 4; i++) {
+      game.processTick();
+    }
+    
+    const grapesProduced = wineryFarm.getResource('grapes');
+    assert(grapesProduced > 0, `Farm produced grapes: ${grapesProduced.toFixed(1)}`);
+    
+    // Transfer grapes to winery
+    wineryCompany.transferResource(wineryFarm, winery, 'grapes', Math.min(grapesProduced, 20));
+    const wineryGrapes = winery.getResource('grapes');
+    assert(wineryGrapes > 0, `Grapes transferred to winery: ${wineryGrapes.toFixed(1)}`);
+    
+    // Winery should have Make Wine recipe by default
+    assert(winery.recipe?.name === 'Make Wine', 'Winery has Make Wine recipe');
+    
+    // Produce wine
+    for (let i = 0; i < 4; i++) {
+      game.processTick();
+    }
+    
+    const wineProduced = winery.getResource('wine');
+    assert(wineProduced > 0, `Winery produced wine: ${wineProduced.toFixed(1)}`);
+    
+    // Verify grapes were consumed
+    const grapesAfter = winery.getResource('grapes');
+    assert(
+      grapesAfter < wineryGrapes,
+      `Grapes consumed in wine production: ${wineryGrapes.toFixed(1)} → ${grapesAfter.toFixed(1)}`
+    );
+  }
+}
 console.log('\n=== PRODUCTION INPUT/OUTPUT TEST ===\n');
 
 // Fresh company for clean production test
@@ -633,6 +726,61 @@ if (demand2Retail && demand2Office && demandRetail) {
   assert(
     Math.abs(retail1Sold - retail2Sold) < retail1Sold * 0.1,
     `Sales roughly equal between retailers: ${retail1Sold.toFixed(0)} ≈ ${retail2Sold.toFixed(0)}`
+  );
+}
+
+console.log('\n=== PRICE SENSITIVITY TEST (Different Prices) ===\n');
+
+// Test that retailers with different prices get different sales volumes
+// NOTE: This test verifies the setup. Full price sensitivity will be implemented in Phase 2.
+const priceTestCompany = game.addCompany('pricetest', 'Price Test Corp');
+const priceOffice = priceTestCompany.createFacility('office', copenhagen) as Office | null;
+const cheapRetail = priceTestCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+const expensiveRetail = priceTestCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+
+if (cheapRetail && expensiveRetail && priceOffice) {
+  priceOffice.setWorkerCount(100);
+  cheapRetail.setWorkerCount(cheapRetail.calculateRequiredWorkers());
+  expensiveRetail.setWorkerCount(expensiveRetail.calculateRequiredWorkers());
+  
+  // Add plenty of bread to both retailers so neither sells out
+  // Copenhagen population is 500k, bread consumption 0.10 = 50k per tick
+  // Give each 100k to ensure surplus after sales
+  const stock = 100000;
+  cheapRetail.addResource('bread', stock);
+  expensiveRetail.addResource('bread', stock);
+  
+  // Set different prices: one cheap, one expensive
+  cheapRetail.setPrice('bread', 3.00);
+  expensiveRetail.setPrice('bread', 5.00);
+  
+  // Verify prices are set correctly
+  assert(
+    cheapRetail.getPrice('bread') === 3.00 && expensiveRetail.getPrice('bread') === 5.00,
+    `Prices set correctly: Cheap=$3.00, Expensive=$5.00`
+  );
+  
+  const cheapBefore = cheapRetail.getResource('bread');
+  const expensiveBefore = expensiveRetail.getResource('bread');
+  
+  // Process tick
+  game.processTick();
+  
+  const cheapAfter = cheapRetail.getResource('bread');
+  const expensiveAfter = expensiveRetail.getResource('bread');
+  
+  const cheapSold = cheapBefore - cheapAfter;
+  const expensiveSold = expensiveBefore - expensiveAfter;
+  
+  assert(
+    cheapSold > 0 && expensiveSold > 0,
+    `Both retailers made sales: Cheap (sold ${cheapSold.toFixed(0)}), Expensive (sold ${expensiveSold.toFixed(0)})`
+  );
+  // Price sensitivity: cheaper retailer should sell significantly more
+  // With bread sensitivity=0.3, $3 vs $5 (40% cheaper) should give ~12% more demand to cheap retailer
+  assert(
+    cheapSold > expensiveSold,
+    `Cheaper retailer sold more: ${cheapSold.toFixed(0)} > ${expensiveSold.toFixed(0)} (price sensitivity: ${((cheapSold / expensiveSold - 1) * 100).toFixed(1)}% advantage)`
   );
 }
 
