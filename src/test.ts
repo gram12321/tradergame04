@@ -1123,8 +1123,10 @@ if (dcRetail1 && dcRetail2 && dcRetail3 && dcOffice1 && dcOffice2 && dcOffice3) 
   
   console.log(`  Aarhus population: ${aarhus.population.toLocaleString()}`);
   console.log(`  Grain consumption rate: ${DEFAULT_CONSUMPTION_RATES.grain || 0} per capita`);
-  const baseDemand = aarhus.population * (DEFAULT_CONSUMPTION_RATES.grain || 0);
-  console.log(`  Base demand: ${baseDemand.toFixed(2)} units`);
+  console.log(`  City wealth: ${aarhus.wealth} (multiplier: ${(0.8 + aarhus.wealth * 0.7).toFixed(3)}x)`);
+  const wealthMultiplier = 0.8 + aarhus.wealth * 0.7;
+  const baseDemand = aarhus.population * (DEFAULT_CONSUMPTION_RATES.grain || 0) * wealthMultiplier;
+  console.log(`  Base demand (with wealth effect): ${baseDemand.toFixed(2)} units`);
   console.log('  ');
   console.log('  Retailer Prices:');
   console.log(`    Retailer 1 (Cheap):     $2.00 (50% below avg)`);
@@ -1175,6 +1177,30 @@ if (dcRetail1 && dcRetail2 && dcRetail3 && dcOffice1 && dcOffice2 && dcOffice3) 
     cheaperAdvantage > excessDemand * 0.5,
     `Cheap retailer captured majority of created demand: ${cheaperAdvantage.toFixed(0)} > ${(excessDemand * 0.5).toFixed(0)}`
   );
+  
+  // Test wealth effect: Compare per-capita demand between Aarhus (wealth 0.85) and Prague (wealth 0.3)
+  // Create Prague retailer using same company for simplicity
+  const pragueRetail = demandCreationCompany1.createFacility('retail', prague) as RetailFacility | null;
+  if (pragueRetail) {
+    pragueRetail.setWorkerCount(pragueRetail.calculateRequiredWorkers());
+    pragueRetail.addResource('grain', 50000);
+    pragueRetail.setPrice('grain', 2.00);
+    
+    const pragueInventoryBefore = pragueRetail.getResource('grain');
+    game.processTick();
+    const pragueInventoryAfter = pragueRetail.getResource('grain');
+    const pragueSold = pragueInventoryBefore - pragueInventoryAfter;
+    
+    // Calculate per-capita consumption
+    const aarhusPerCapita = totalSold / aarhus.population;
+    const praguePerCapita = pragueSold / prague.population;
+    
+    // Verify wealth effect: wealthier city should have higher per-capita demand
+    assert(
+      aarhusPerCapita > praguePerCapita,
+      `Wealth effect: Aarhus (0.85 wealth) per-capita ${(aarhusPerCapita * 1000).toFixed(2)} > Prague (0.3 wealth) ${(praguePerCapita * 1000).toFixed(2)} per 1000 people`
+    );
+  }
 }
 
 console.log('\n=== DEMAND CALCULATION STEP-BY-STEP EXPLANATION ===\n');
@@ -1314,6 +1340,107 @@ if (stepRetail1 && stepRetail2 && stepRetail3 && stepOffice1 && stepOffice2 && s
   assert(
     breadSold3 === 3000,
     `Cheapest retailer sold all available inventory: ${breadSold3.toFixed(0)} units`
+  );
+}
+
+console.log('\n=== BIDIRECTIONAL SUBSTITUTION TEST ===\n');
+
+// Test that substitution affects both resources (loss and gain)
+const biSubstCompany = game.addCompany('bisubst', 'Bidirectional Subst Corp');
+const biOffice = biSubstCompany.createFacility('office', aarhus) as Office | null;
+const biGrainRetail = biSubstCompany.createFacility('retail', aarhus) as RetailFacility | null;
+const biGrapesRetail = biSubstCompany.createFacility('retail', aarhus) as RetailFacility | null;
+
+if (biGrainRetail && biGrapesRetail && biOffice) {
+  biOffice.setWorkerCount(100);
+  biGrainRetail.setWorkerCount(biGrainRetail.calculateRequiredWorkers());
+  biGrapesRetail.setWorkerCount(biGrapesRetail.calculateRequiredWorkers());
+  
+  biGrainRetail.addResource('grain', 50000);
+  biGrapesRetail.addResource('grapes', 50000);
+  
+  // Make grain expensive (shift demand to grapes)
+  biGrainRetail.setPrice('grain', 8.00); // Much higher than reference
+  biGrapesRetail.setPrice('grapes', 2.00); // Normal price
+  
+  const grainBefore = biGrainRetail.getResource('grain');
+  const grapesBefore = biGrapesRetail.getResource('grapes');
+  
+  game.processTick();
+  
+  const grainSold = grainBefore - biGrainRetail.getResource('grain');
+  const grapesSold = grapesBefore - biGrapesRetail.getResource('grapes');
+  
+  assert(
+    grapesSold > grainSold,
+    `Substitution: expensive grain (${grainSold.toFixed(0)}) < cheap grapes (${grapesSold.toFixed(0)})`
+  );
+}
+
+console.log('\n=== PER-RETAILER RANDOMNESS TEST ===\n');
+
+// Test that identical retailers get slightly different sales due to ±5% randomness
+const randCompany1 = game.addCompany('rand1', 'Random Corp 1');
+const randCompany2 = game.addCompany('rand2', 'Random Corp 2');
+const randCompany3 = game.addCompany('rand3', 'Random Corp 3');
+
+const randOffice1 = randCompany1.createFacility('office', prague) as Office | null;
+const randOffice2 = randCompany2.createFacility('office', prague) as Office | null;
+const randOffice3 = randCompany3.createFacility('office', prague) as Office | null;
+
+const randRetail1 = randCompany1.createFacility('retail', prague) as RetailFacility | null;
+const randRetail2 = randCompany2.createFacility('retail', prague) as RetailFacility | null;
+const randRetail3 = randCompany3.createFacility('retail', prague) as RetailFacility | null;
+
+if (randRetail1 && randRetail2 && randRetail3 && randOffice1 && randOffice2 && randOffice3) {
+  [randOffice1, randOffice2, randOffice3].forEach(o => o.setWorkerCount(100));
+  [randRetail1, randRetail2, randRetail3].forEach(r => {
+    r.setWorkerCount(r.calculateRequiredWorkers());
+    r.addResource('bread', 50000);
+    r.setPrice('bread', 10.00); // Identical prices
+  });
+  
+  const before1 = randRetail1.getResource('bread');
+  const before2 = randRetail2.getResource('bread');
+  const before3 = randRetail3.getResource('bread');
+  
+  game.processTick();
+  
+  const sold1 = before1 - randRetail1.getResource('bread');
+  const sold2 = before2 - randRetail2.getResource('bread');
+  const sold3 = before3 - randRetail3.getResource('bread');
+  
+  // With randomness, sales shouldn't be exactly equal
+  const allDifferent = sold1 !== sold2 || sold2 !== sold3 || sold1 !== sold3;
+  assert(
+    allDifferent,
+    `Randomness creates variation: ${sold1.toFixed(0)}, ${sold2.toFixed(0)}, ${sold3.toFixed(0)} units`
+  );
+}
+
+console.log('\n=== DEMAND SHOCKS TEST ===\n');
+
+// Run multiple ticks to verify demand shocks don't crash the system
+// (5% chance per resource per tick makes individual shocks hard to test deterministically)
+const shockCompany = game.addCompany('shock', 'Shock Test Corp');
+const shockOffice = shockCompany.createFacility('office', copenhagen) as Office | null;
+const shockRetail = shockCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+
+if (shockRetail && shockOffice) {
+  shockOffice.setWorkerCount(100);
+  shockRetail.setWorkerCount(shockRetail.calculateRequiredWorkers());
+  shockRetail.addResource('flour', 50000);
+  shockRetail.setPrice('flour', 6.00);
+  
+  // Process multiple ticks to potentially trigger shocks
+  for (let i = 0; i < 20; i++) {
+    game.processTick();
+  }
+  
+  const finalInventory = shockRetail.getResource('flour');
+  assert(
+    finalInventory < 50000,
+    `Demand shocks system stable over 20 ticks (inventory: ${finalInventory.toFixed(0)})`
   );
 }
 
