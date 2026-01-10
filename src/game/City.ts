@@ -6,7 +6,8 @@ export class City {
         public readonly name: string,
         public readonly country: string,
         public readonly wealth: number, // 0-1 scale
-        public readonly population: number
+        public readonly population: number,
+        public readonly flag: string = '🏳️'
     ) {
         if (wealth < 0 || wealth > 1) {
             throw new Error(`Wealth must be between 0 and 1, got ${wealth}`);
@@ -48,12 +49,12 @@ export class City {
         const wealthMultiplier = 0.8 + this.wealth * 0.7; // wealth is 0-1, gives 0.8-1.5 range
         const baseDemand = new Map<string, number>();
         const avgPrices = new Map<string, number>();
-        
+
         for (const [resourceId, consumptionRate] of Object.entries(DEFAULT_CONSUMPTION_RATES)) {
             if (consumptionRate <= 0) continue;
-            
+
             baseDemand.set(resourceId, this.population * consumptionRate * wealthMultiplier);
-            
+
             // Calculate average retail price for this resource
             const activeRetailers = retailers.filter(r => r.getPrice(resourceId) > 0);
             if (activeRetailers.length > 0) {
@@ -66,47 +67,47 @@ export class City {
         const adjustedDemand = new Map(baseDemand); // Start with base demand
         const substitutionGains = new Map<string, number>(); // Track gains from other resources
         const substitutionLosses = new Map<string, number>(); // Track losses to other resources
-        
+
         const resources = Array.from(baseDemand.keys());
         for (let i = 0; i < resources.length; i++) {
             for (let j = i + 1; j < resources.length; j++) {
                 const resA = resources[i];
                 const resB = resources[j];
-                
+
                 const priceA = avgPrices.get(resA);
                 const priceB = avgPrices.get(resB);
-                
+
                 // Skip if either resource has no price
                 if (!priceA || !priceB) continue;
-                
+
                 // Get resource levels for elasticity lookup
                 const levelA = ResourceRegistry.get(resA)?.level;
                 const levelB = ResourceRegistry.get(resB)?.level;
                 if (!levelA || !levelB) continue;
-                
+
                 // Get cross-level elasticity
                 const elasticity = CROSS_LEVEL_ELASTICITY[levelA][levelB];
                 if (elasticity <= 0) continue;
-                
+
                 // Get reference price ratios
                 const ratioA = RESOURCE_PRICE_RATIOS[resA];
                 const ratioB = RESOURCE_PRICE_RATIOS[resB];
                 if (!ratioA || !ratioB) continue;
-                
+
                 // Calculate actual and expected price ratios
                 const actualRatio = priceA / priceB;
                 const referenceRatio = ratioA / ratioB;
-                
+
                 // Only substitute if deviation is significant (> 2%)
                 const deviation = Math.abs((actualRatio / referenceRatio) - 1);
                 if (deviation < 0.02) continue;
-                
+
                 // Determine which resource is relatively expensive
                 if (actualRatio > referenceRatio) {
                     // Resource A is expensive relative to B → shift demand from A to B
                     const demandA = baseDemand.get(resA) || 0;
                     const shiftAmount = demandA * deviation * elasticity * 0.5; // 0.5 = dampening
-                    
+
                     // Track bidirectional substitution
                     substitutionLosses.set(resA, (substitutionLosses.get(resA) || 0) + shiftAmount);
                     substitutionGains.set(resB, (substitutionGains.get(resB) || 0) + shiftAmount);
@@ -114,14 +115,14 @@ export class City {
                     // Resource B is expensive relative to A → shift demand from B to A
                     const demandB = baseDemand.get(resB) || 0;
                     const shiftAmount = demandB * deviation * elasticity * 0.5; // 0.5 = dampening
-                    
+
                     // Track bidirectional substitution
                     substitutionLosses.set(resB, (substitutionLosses.get(resB) || 0) + shiftAmount);
                     substitutionGains.set(resA, (substitutionGains.get(resA) || 0) + shiftAmount);
                 }
             }
         }
-        
+
         // Apply net substitution effects
         for (const [resourceId, baseDemandValue] of baseDemand.entries()) {
             const loss = substitutionLosses.get(resourceId) || 0;
@@ -140,31 +141,31 @@ export class City {
 
             // Get unique companies to prevent gaming (only count one retailer per company)
             const uniqueCompanies = new Set(activeRetailers.map(r => r.ownerId));
-            const uniqueRetailers = Array.from(uniqueCompanies).map(ownerId => 
+            const uniqueRetailers = Array.from(uniqueCompanies).map(ownerId =>
                 activeRetailers.find(r => r.ownerId === ownerId)!
             );
 
             // Calculate dampened average price (treat as if minimum 5 unique retailers)
             // This prevents excessive demand creation in thin markets
             const effectiveRetailerCount = Math.max(5, uniqueRetailers.length);
-            
+
             // For dampening, blend actual prices with the average to simulate more retailers
             const actualPrices = uniqueRetailers.map(r => r.getPrice(resourceId));
             const dampenedPrices = [...actualPrices];
-            
+
             // Add synthetic "average" retailers to reach minimum of 5
             const syntheticRetailersNeeded = Math.max(0, effectiveRetailerCount - uniqueRetailers.length);
             for (let i = 0; i < syntheticRetailersNeeded; i++) {
                 dampenedPrices.push(avgPrice);
             }
-            
+
             const dampenedAvgPrice = dampenedPrices.reduce((sum, p) => sum + p, 0) / dampenedPrices.length;
 
             // Calculate demand creation for each retailer below dampened average
             let totalCreatedDemand = 0;
             for (const retailer of uniqueRetailers) {
                 const price = retailer.getPrice(resourceId);
-                
+
                 // Only create demand if price is below dampened average
                 if (price >= dampenedAvgPrice) continue;
 
@@ -174,11 +175,11 @@ export class City {
                 // Use power function similar to calculateDemandCreationFactor
                 // More aggressive than just redistribution, but still bounded
                 const creationFactor = Math.pow(1 / priceRatio, sensitivity * 0.8);
-                
+
                 // Created demand is a fraction of base demand, capped to prevent extreme values
                 const maxCreationMultiplier = Math.min(creationFactor - 1, 0.5); // Cap at 50% additional demand
                 const createdDemand = currentDemand * maxCreationMultiplier * 0.3; // 0.3 = dampening factor
-                
+
                 totalCreatedDemand += createdDemand;
             }
 
@@ -187,24 +188,24 @@ export class City {
                 adjustedDemand.set(resourceId, currentDemand + totalCreatedDemand);
             }
         }
-        
+
         // STEP 3.6: Apply demand shocks (5% chance per resource)
         // Affects one random retailer, redistributes demand loss to others
         const demandShockAdjustments = new Map<string, Map<string, number>>(); // resourceId -> Map<retailerId, adjustment>
-        
+
         for (const [resourceId] of adjustedDemand.entries()) {
             // 5% chance of demand shock for this resource
             if (Math.random() >= 0.05) continue;
-            
+
             const activeRetailers = retailers.filter(r => r.getPrice(resourceId) > 0);
             if (activeRetailers.length <= 1) continue; // Need at least 2 retailers for redistribution
-            
+
             // Pick one random retailer to be shocked
             const shockedRetailer = activeRetailers[Math.floor(Math.random() * activeRetailers.length)];
-            
+
             // Apply ±15% shock
             const shockMultiplier = Math.random() < 0.5 ? 0.85 : 1.15;
-            
+
             // Store shock adjustments for later application in distribution
             if (!demandShockAdjustments.has(resourceId)) {
                 demandShockAdjustments.set(resourceId, new Map());
@@ -223,29 +224,29 @@ export class City {
             // STEP 4a: Equal share would be totalDemand / activeRetailers.length
             // STEP 4b: Price-weighted distribution based on inter-retailer sensitivity
             const sensitivity = INTER_RETAILER_SENSITIVITY[resourceId] || 1.0;
-            
+
             // Calculate average price across all retailers
             const avgPrice = activeRetailers.reduce((sum, r) => sum + r.getPrice(resourceId), 0) / activeRetailers.length;
-            
+
             // Calculate price-weighted shares: (avgPrice / retailPrice)^sensitivity
             const rawShares = activeRetailers.map(r => {
                 const price = r.getPrice(resourceId);
                 return Math.pow(avgPrice / price, sensitivity);
             });
-            
+
             // Apply per-retailer randomness (±5%) to raw shares
             const randomizedShares = rawShares.map(share => {
                 const randomFactor = 0.95 + Math.random() * 0.1; // 0.95 to 1.05
                 return share * randomFactor;
             });
-            
+
             // Normalize shares to sum to 1
             const totalRandomizedShares = randomizedShares.reduce((sum, val) => sum + val, 0);
             const normalizedShares = randomizedShares.map(share => share / totalRandomizedShares);
-            
+
             // Calculate demand per retailer
             let demandShares = normalizedShares.map(share => totalDemand * share);
-            
+
             // Apply demand shocks if any exist for this resource
             const shockAdjustments = demandShockAdjustments.get(resourceId);
             if (shockAdjustments && shockAdjustments.size > 0) {
@@ -253,15 +254,15 @@ export class City {
                 const shockedRetailerId = Array.from(shockAdjustments.keys())[0];
                 const shockMultiplier = shockAdjustments.get(shockedRetailerId)!;
                 const shockedIndex = activeRetailers.findIndex(r => r.id === shockedRetailerId);
-                
+
                 if (shockedIndex !== -1) {
                     const originalDemand = demandShares[shockedIndex];
                     const shockedDemand = originalDemand * shockMultiplier;
                     const demandDifference = originalDemand - shockedDemand;
-                    
+
                     // Apply shock to the shocked retailer
                     demandShares[shockedIndex] = shockedDemand;
-                    
+
                     // Redistribute the difference to other retailers proportionally
                     if (demandDifference !== 0) {
                         const otherRetailersCount = activeRetailers.length - 1;
@@ -273,7 +274,7 @@ export class City {
                                     totalOtherShares += normalizedShares[i];
                                 }
                             }
-                            
+
                             // Redistribute proportionally
                             for (let i = 0; i < demandShares.length; i++) {
                                 if (i !== shockedIndex) {
@@ -293,7 +294,7 @@ export class City {
                 const available = retailer.getResource(resourceId);
                 const demandShare = demandShares[i];
                 const sold = Math.min(demandShare, available);
-                
+
                 retailer.executeSale(resourceId, sold);
                 unfulfilled.push(demandShare - sold);
             }
@@ -302,10 +303,10 @@ export class City {
             const totalUnfulfilled = unfulfilled.reduce((sum, val) => sum + val, 0);
             if (totalUnfulfilled > 0) {
                 const retailersWithInventory = activeRetailers.filter(r => r.getResource(resourceId) > 0);
-                
+
                 if (retailersWithInventory.length > 0) {
                     const redistributionShare = totalUnfulfilled / retailersWithInventory.length;
-                    
+
                     for (const retailer of retailersWithInventory) {
                         const available = retailer.getResource(resourceId);
                         const sold = Math.min(redistributionShare, available);
@@ -342,7 +343,7 @@ export class City {
         }>;
     } {
         const resourcesReport = new Map();
-        
+
         // Get all resources being sold in this city
         const resourcesInCity = new Set<string>();
         for (const retailer of retailers) {
@@ -352,12 +353,12 @@ export class City {
                 }
             }
         }
-        
+
         // Build report for each resource
         for (const resourceId of resourcesInCity) {
             const consumptionRate = DEFAULT_CONSUMPTION_RATES[resourceId] || 0;
             const baseDemand = this.population * consumptionRate;
-            
+
             let totalSales = 0;
             const retailerData: Array<{
                 facilityId: string;
@@ -369,16 +370,16 @@ export class City {
                 currentStock: number;
                 marketShare: number;
             }> = [];
-            
+
             // Collect data from each retailer
             for (const retailer of retailers) {
                 const price = retailer.getPrice(resourceId);
                 if (price === 0) continue;
-                
+
                 const sales = retailer.getSoldAmount(resourceId);
                 const revenue = sales * price;
                 const currentStock = retailer.getResource(resourceId);
-                
+
                 totalSales += sales;
                 retailerData.push({
                     facilityId: retailer.id,
@@ -391,17 +392,17 @@ export class City {
                     marketShare: 0 // Will be calculated after totalSales is known
                 });
             }
-            
+
             // Calculate market shares
             for (const data of retailerData) {
                 data.marketShare = totalSales > 0 ? (data.sales / totalSales) : 0;
             }
-            
+
             // Sort by sales (descending)
             retailerData.sort((a, b) => b.sales - a.sales);
-            
+
             const fulfillmentRate = baseDemand > 0 ? (totalSales / baseDemand) : 0;
-            
+
             resourcesReport.set(resourceId, {
                 baseDemand,
                 consumptionRate,
@@ -410,7 +411,7 @@ export class City {
                 retailers: retailerData
             });
         }
-        
+
         return {
             city: this.name,
             population: this.population,

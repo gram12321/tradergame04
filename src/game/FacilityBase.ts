@@ -10,6 +10,13 @@ export interface ContractInfo {
   isSelling: boolean; // true if this facility is selling, false if buying
 }
 
+export interface InternalTransferInfo {
+  transferId: string;
+  resource: string;
+  amountPerTick: number;
+  isOutgoing: boolean; // true if this facility is sending, false if receiving
+}
+
 /**
  * Abstract base class for all facility types
  * Contains shared properties and logic for facilities, warehouses, and offices
@@ -26,13 +33,14 @@ export abstract class FacilityBase {
   controllingOfficeId: string | null; // Reference to the office that controls this facility
   officeEffectivityMultiplier: number; // Hard cap from controlling office (0-1)
   contracts: Map<string, ContractInfo>;
+  internalTransfers: Map<string, InternalTransferInfo>;
   
   // Inventory properties (optional - only used by Production, Storage, Retail)
   inventory?: Map<string, number>;
   cachedMaxInventoryCapacity?: number;
 
   constructor(type: string, ownerId: string, name: string, city: City) {
-    this.id = Math.random().toString(36).substring(7);
+    this.id = crypto.randomUUID();
     this.name = name;
     this.type = type;
     this.ownerId = ownerId;
@@ -42,6 +50,7 @@ export abstract class FacilityBase {
     this.controllingOfficeId = null;
     this.officeEffectivityMultiplier = 1;
     this.contracts = new Map();
+    this.internalTransfers = new Map();
     // Workers will be set by subclass after initialization
     this.workers = 0;
   }
@@ -211,6 +220,39 @@ export abstract class FacilityBase {
    */
   getBuyingContracts(): ContractInfo[] {
     return Array.from(this.contracts.values()).filter(c => !c.isSelling);
+  }
+
+  /**
+   * Add an internal transfer to this facility
+   */
+  addInternalTransfer(transferId: string, resource: string, amountPerTick: number, isOutgoing: boolean): void {
+    this.internalTransfers.set(transferId, {
+      transferId,
+      resource,
+      amountPerTick,
+      isOutgoing
+    });
+  }
+
+  /**
+   * Remove an internal transfer from this facility
+   */
+  removeInternalTransfer(transferId: string): boolean {
+    return this.internalTransfers.delete(transferId);
+  }
+
+  /**
+   * Get all outgoing internal transfers for this facility
+   */
+  getOutgoingInternalTransfers(): InternalTransferInfo[] {
+    return Array.from(this.internalTransfers.values()).filter(t => t.isOutgoing);
+  }
+
+  /**
+   * Get all incoming internal transfers for this facility
+   */
+  getIncomingInternalTransfers(): InternalTransferInfo[] {
+    return Array.from(this.internalTransfers.values()).filter(t => !t.isOutgoing);
   }
 
   // ========================================

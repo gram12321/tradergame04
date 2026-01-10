@@ -18,6 +18,7 @@ export interface FacilityDefinition {
   allowedRecipes: string[]; // Recipe names that can be assigned to this facility
   defaultRecipe: string | null; // Default recipe assigned when facility is built
   description: string;
+  icon: string;
 }
 
 /**
@@ -37,7 +38,8 @@ export class FacilityRegistry {
       capacityMultiplier: 1.0, // Base capacity
       allowedRecipes: ['Grow Grain', 'Grow Grapes', 'Grow Sugar'],
       defaultRecipe: 'Grow Grain',
-      description: 'Produces grain from the land'
+      description: 'Produces grain from the land',
+      icon: '🚜'
     });
 
     // Mill - processes grain into flour
@@ -50,7 +52,8 @@ export class FacilityRegistry {
       capacityMultiplier: 1.5, // 1.5x capacity
       allowedRecipes: ['Make Flour'],
       defaultRecipe: 'Make Flour',
-      description: 'Processes grain into flour'
+      description: 'Processes grain into flour',
+      icon: '⚙️'
     });
 
     // Bakery - processes flour into bread and cake
@@ -63,7 +66,8 @@ export class FacilityRegistry {
       capacityMultiplier: 2.0, // 2x capacity
       allowedRecipes: ['Bake Bread', 'Bake Cake'],
       defaultRecipe: 'Bake Bread',
-      description: 'Bakes flour into bread'
+      description: 'Bakes flour into bread',
+      icon: '🥖'
     });
 
     // Winery - processes grapes into wine
@@ -76,7 +80,8 @@ export class FacilityRegistry {
       capacityMultiplier: 1.8, // 1.8x capacity
       allowedRecipes: ['Make Wine'],
       defaultRecipe: 'Make Wine',
-      description: 'Produces wine from grapes'
+      description: 'Produces wine from grapes',
+      icon: '🍷'
     });
 
     // Warehouse - storage only, no production
@@ -89,7 +94,8 @@ export class FacilityRegistry {
       capacityMultiplier: 10.0, // 10x capacity!
       allowedRecipes: [], // No recipes allowed
       defaultRecipe: null,
-      description: 'Storage facility for goods, cannot produce'
+      description: 'Storage facility for goods, cannot produce',
+      icon: '📦'
     });
 
     // Office - administrative facility, required for operating in a country
@@ -102,7 +108,8 @@ export class FacilityRegistry {
       capacityMultiplier: 0.0, // No inventory capacity
       allowedRecipes: [], // No recipes allowed
       defaultRecipe: null,
-      description: 'Administrative office required to operate facilities in a country'
+      description: 'Administrative office required to operate facilities in a country',
+      icon: '🏢'
     });
 
     // Retail - sells products to the population
@@ -115,7 +122,8 @@ export class FacilityRegistry {
       capacityMultiplier: 3.0, // 3x capacity for storing goods to sell
       allowedRecipes: [], // No recipes - sells existing products
       defaultRecipe: null,
-      description: 'Retail facility that sells products to the population for revenue'
+      description: 'Retail facility that sells products to the population for revenue',
+      icon: '🏪'
     });
   }
 
@@ -152,23 +160,30 @@ export class FacilityRegistry {
   }
 
   /**
+   * Get all facility definitions
+   */
+  static getAllDefinitions(): FacilityDefinition[] {
+    return Array.from(this.facilities.values());
+  }
+
+  /**
    * Display all available facilities
    */
   static displayFacilities(): string {
     const lines: string[] = ['\n=== Available Facilities ==='];
-    
+
     this.facilities.forEach(facility => {
       lines.push(`\n${facility.name} (${facility.type})`);
       lines.push(`  Cost: $${facility.cost}`);
       lines.push(`  Description: ${facility.description}`);
-      
+
       if (facility.allowedRecipes.length > 0) {
         lines.push(`  Allowed Recipes: ${facility.allowedRecipes.join(', ')}`);
       } else {
         lines.push(`  Allowed Recipes: None (storage only)`);
       }
     });
-    
+
     return lines.join('\n');
   }
 }

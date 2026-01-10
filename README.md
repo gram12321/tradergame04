@@ -31,12 +31,22 @@ src/
 
 ## Development
 
-Currently in **Phase 1**: Pure game mechanics development.
+Currently in **Phase 2**: Database Persistence with Supabase.
 
-- Focus on game balance and mechanics
-- Test via console output
-- No infrastructure dependencies
-- Iterate quickly
+- Game state persists across browser refreshes
+- Autosave on each tick
+- Supabase PostgreSQL database backend
+
+### Important: Browser vs Node.js
+
+The project uses different Supabase clients for browser and Node.js:
+- **Browser**: Uses Supabase CDN (loaded in index.html), with manual override in `dist/database/supabase.js`
+- **Node.js**: Uses npm package via TypeScript compilation
+
+After running `npm run build`, you must manually ensure `dist/database/supabase.js` uses the browser client:
+```javascript
+export const supabase = window.supabaseClient;
+```
 
 See [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) for the full roadmap.
 

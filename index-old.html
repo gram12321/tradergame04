@@ -1,0 +1,2206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trader Game 04</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #4ec9b0;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-row {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background-color: #0e639c;
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #1177bb;
+        }
+
+        button:active {
+            background-color: #0d5689;
+        }
+
+        button.secondary {
+            background-color: #3e3e42;
+        }
+
+        button.secondary:hover {
+            background-color: #4e4e52;
+        }
+
+        .output {
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 400px;
+            overflow-y: auto;
+            max-height: 600px;
+        }
+
+        .facilities-info {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+
+        .market-display {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+
+        .company-panel {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .company-header {
+            color: #4ec9b0;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .balance {
+            color: #ce9178;
+            font-size: 16px;
+        }
+
+        .facility-list {
+            margin-top: 10px;
+        }
+
+        .facility-item {
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+
+        .facility-name {
+            color: #9cdcfe;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .facility-status {
+            color: #d4d4d4;
+            font-size: 12px;
+            margin-bottom: 3px;
+        }
+
+        .facility-inventory {
+            color: #ce9178;
+            font-size: 12px;
+        }
+
+        label {
+            color: #9cdcfe;
+            margin-right: 10px;
+        }
+
+        select,
+        input {
+            background-color: #3c3c3c;
+            color: #d4d4d4;
+            border: 1px solid #3e3e42;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-family: inherit;
+        }
+
+        .section-title {
+            color: #4ec9b0;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .message-log {
+            background-color: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+
+        .message {
+            padding: 5px 0;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .message:last-child {
+            border-bottom: none;
+        }
+
+        .message.success {
+            color: #4ec9b0;
+        }
+
+        .message.error {
+            color: #f48771;
+        }
+
+        .message.info {
+            color: #9cdcfe;
+        }
+
+        .action-form {
+            display: none;
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+        }
+
+        .action-form.active {
+            display: block;
+        }
+
+        .form-row {
+            margin-bottom: 10px;
+        }
+
+        .form-row label {
+            display: inline-block;
+            width: 120px;
+        }
+
+        .form-row input,
+        .form-row select {
+            width: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎮 Trader Game 04</h1>
+
+        <div class="controls">
+            <div class="section-title">Company Selection</div>
+            <div class="control-row">
+                <label>Active Company:</label>
+                <select id="companySelector" onchange="switchCompany()">
+                    <option value="alice">👩‍💼 Alice Corp</option>
+                    <option value="bob">🏭 Bob Industries</option>
+                </select>
+                <span style="margin-left: 20px; color: #9cdcfe;">Current Balance: <span
+                        id="currentBalance">$10,000.00</span></span>
+            </div>
+        </div>
+
+        <div class="facilities-info" id="facilitiesInfo"></div>
+        <div class="facilities-info" id="resourcesInfo"></div>
+        <div class="facilities-info" id="citiesInfo"></div>
+        <div class="facilities-info" id="demandSalesInfo"></div>
+
+        <div class="message-log" id="messageLog">
+            <div class="message info">Game initialized. Ready to play!</div>
+        </div>
+
+        <div class="controls">
+            <div class="section-title">Game Controls</div>
+            <div class="control-row">
+                <button onclick="processTick()">⏭️ Process Tick</button>
+                <button onclick="autoTick()" id="autoTickBtn">▶️ Auto Tick (1s)</button>
+                <button onclick="resetGame()" class="secondary">🔄 Reset Game</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="section-title">⚙️ Cheat Menu</div>
+            <div class="control-row">
+                <label>Add Balance:</label>
+                <input type="number" id="cheatAmount" value="1000" min="0">
+                <button onclick="cheatAddBalance()" class="secondary">Add to Current Company</button>
+            </div>
+            <div class="control-row">
+                <label>Set Balance:</label>
+                <input type="number" id="cheatSetAmount" value="10000" min="0">
+                <button onclick="cheatSetBalance()" class="secondary">Set Current Company Balance</button>
+            </div>
+        </div>
+
+        <div class="company-panel">
+            <div class="company-header" id="currentCompanyHeader">
+                <span>👩‍💼 Alice Corp</span>
+                <span class="balance" id="currentCompanyBalance">$10,000.00</span>
+            </div>
+            <div class="facility-list" id="currentCompanyFacilities"></div>
+        </div>
+
+        <div class="controls">
+            <div class="section-title" id="currentCompanyActionsTitle">Alice Corp Actions</div>
+            <div class="control-row">
+                <label>Facility Type:</label>
+                <select id="currentFacilityType">
+                    <option value="office">Office ($2500)</option>
+                    <option value="farm">Farm ($1000)</option>
+                    <option value="mill">Mill ($1500)</option>
+                    <option value="bakery">Bakery ($2000)</option>
+                    <option value="warehouse">Warehouse ($500)</option>
+                    <option value="retail">Retail ($1800)</option>
+                    <option value="winery">Winery ($1800)</option>
+                </select>
+                <label>City:</label>
+                <select id="currentFacilityCity">
+                    <option value="Copenhagen,Denmark">Copenhagen (Denmark, wealth 0.9)</option>
+                    <option value="Aarhus,Denmark">Aarhus (Denmark, wealth 0.85)</option>
+                    <option value="Prague,Czech Republic">Prague (Czech Republic, wealth 0.3)</option>
+                    <option value="Cairo,Egypt">Cairo (Egypt, wealth 0.1)</option>
+                </select>
+                <button onclick="createFacility()">Build Facility</button>
+            </div>
+            <div class="control-row">
+                <button onclick="toggleForm('currentTransfer')">Transfer Resources</button>
+                <button onclick="toggleForm('currentInternalTransfer')">Create Internal Transfer</button>
+                <button onclick="toggleForm('currentSellOffer')">Create Sell Offer</button>
+                <button onclick="toggleForm('currentContract')">Create Buy Contract</button>
+                <button onclick="toggleForm('currentUpgrade')">Upgrade Facility</button>
+                <button onclick="toggleForm('currentDegrade')">Degrade Facility</button>
+                <button onclick="toggleForm('currentWorkers')">Hire/Fire Workers</button>
+                <button onclick="toggleForm('currentEdit')">Edit Offer/Contract</button>
+                <button onclick="toggleForm('currentCancel')">Cancel Offer/Contract</button>
+                <button onclick="toggleForm('currentDestroy')">Destroy Facility</button>
+                <button onclick="toggleForm('currentSetRetailPrice')">Set Retail Price</button>
+                <button onclick="toggleForm('currentChangeRecipe')">Change Recipe</button>
+            </div>
+
+            <div id="currentChangeRecipe" class="action-form">
+                <div class="form-row">
+                    <label>Select Facility:</label>
+                    <select id="currentChangeRecipeFacility">
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>New Recipe:</label>
+                    <select id="currentChangeRecipeType">
+                    </select>
+                </div>
+                <button onclick="executeChangeRecipe()">Change Recipe</button>
+            </div>
+
+            <div id="currentDestroy" class="action-form">
+                <div class="form-row">
+                    <label>Select Facility to Destroy:</label>
+                    <select id="currentDestroyFacility">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <button onclick="destroyFacility('current')">⚠️ Destroy Facility (Permanent)</button>
+            </div>
+
+            <div id="currentTransfer" class="action-form">
+                <div class="form-row">
+                    <label>From Facility:</label>
+                    <select id="currentTransferFrom"></select>
+                </div>
+                <div class="form-row">
+                    <label>To Facility:</label>
+                    <select id="currentTransferTo"></select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="currentTransferResource"></select>
+                </div>
+                <div class="form-row">
+                    <label>Amount:</label>
+                    <input type="number" id="currentTransferAmount" min="1" value="1">
+                </div>
+                <button onclick="executeTransfer()">Execute Transfer</button>
+                <button onclick="toggleForm('currentTransfer')" class="secondary">Cancel</button>
+            </div>
+
+            <div id="currentInternalTransfer" class="action-form">
+                <div class="form-row">
+                    <label>From Facility:</label>
+                    <select id="currentInternalTransferFrom"></select>
+                </div>
+                <div class="form-row">
+                    <label>To Facility:</label>
+                    <select id="currentInternalTransferTo"></select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="currentInternalTransferResource"></select>
+                </div>
+                <div class="form-row">
+                    <label>Amount/tick:</label>
+                    <input type="number" id="currentInternalTransferAmount" min="1" value="1">
+                </div>
+                <button onclick="executeCreateInternalTransfer()">Create Internal Transfer</button>
+                <button onclick="toggleForm('currentInternalTransfer')" class="secondary">Cancel</button>
+            </div>
+
+            <div id="currentUpgrade" class="action-form">
+                <div class="form-row">
+                    <label>Select Facility:</label>
+                    <select id="currentUpgradeFacility"></select>
+                </div>
+                <div id="currentUpgradeInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
+                <button onclick="executeUpgrade()">Upgrade Facility</button>
+                <button onclick="toggleForm('currentUpgrade')" class="secondary">Cancel</button>
+            </div>
+
+            <div id="currentDegrade" class="action-form">
+                <div class="form-row">
+                    <label>Select Facility:</label>
+                    <select id="currentDegradeFacility"></select>
+                </div>
+                <div id="currentDegradeInfo" style="margin: 10px 0; color: #ce9178; font-size: 12px;"></div>
+                <button onclick="executeDegrade()">⚠️ Degrade Facility (Get 50% Refund)</button>
+                <button onclick="toggleForm('currentDegrade')" class="secondary">Cancel</button>
+            </div>
+
+            <div id="currentWorkers" class="action-form">
+                <div class="form-row">
+                    <label>Select Facility:</label>
+                    <select id="currentWorkersFacility" onchange="updateWorkersSlider('current')"></select>
+                </div>
+                <div id="currentWorkersInfo" style="margin: 10px 0; color: #9cdcfe; font-size: 12px;"></div>
+                <div class="form-row">
+                    <label>Workers: <span id="currentWorkersValue">0</span></label>
+                    <input type="range" id="currentWorkersSlider" min="1" max="10" value="1"
+                        oninput="updateWorkersDisplay('current')">
+                </div>
+                <button onclick="executeSetWorkers()">Set Worker Count</button>
+                <button onclick="toggleForm('currentWorkers')" class="secondary">Cancel</button>
+            </div>
+
+            <div id="currentSellOffer" class="action-form">
+                <div class="form-row">
+                    <label>From Facility:</label>
+                    <select id="currentSellOfferFacility"></select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="currentSellOfferResource"></select>
+                </div>
+                <div class="form-row">
+                    <label>Amount/tick:</label>
+                    <input type="number" id="currentSellOfferAmount" min="1" value="1">
+                </div>
+                <div class="form-row">
+                    <label>Price per Unit:</label>
+                    <input type="number" id="currentSellOfferPrice" min="0.01" step="0.01" value="1.00">
+                </div>
+                <button onclick="executeCreateSellOffer()">Create Sell Offer</button>
+                <button onclick="toggleForm('currentSellOffer')" class="secondary">Cancel</button>
+            </div>
+
+            <div id="currentContract" class="action-form">
+                <div class="form-row">
+                    <label>Sell Offer:</label>
+                    <select id="currentContractOffer"></select>
+                </div>
+                <div class="form-row">
+                    <label>To Facility:</label>
+                    <select id="currentContractFacility"></select>
+                </div>
+                <div class="form-row">
+                    <label>Amount/tick:</label>
+                    <input type="number" id="currentContractAmount" min="1" value="1">
+                </div>
+                <button onclick="executeCreateContract()">Create Contract</button>
+                <button onclick="toggleForm('currentContract')" class="secondary">Cancel</button>
+            </div>
+
+            <div id="currentEdit" class="action-form">
+                <div class="form-row">
+                    <label>Type:</label>
+                    <select id="currentEditType" onchange="updateEditOptions()">
+                        <option value="offer">My Sell Offer</option>
+                        <option value="contract-seller">My Contract (Selling)</option>
+                        <option value="contract-buyer">My Contract (Buying)</option>
+                        <option value="internal-transfer">My Internal Transfer</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Select:</label>
+                    <select id="currentEditSelect" onchange="populateEditForm()"></select>
+                </div>
+                <div id="currentEditOfferForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Price/unit:</label>
+                        <input type="number" id="currentEditOfferPrice" min="0.01" step="0.01" value="1.00">
+                    </div>
+                    <div class="form-row">
+                        <label>New Amount/tick:</label>
+                        <input type="number" id="currentEditOfferAmount" min="1" value="1">
+                    </div>
+                    <button onclick="executeEditOffer()">Update Offer</button>
+                </div>
+                <div id="currentEditContractSellerForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Price/unit:</label>
+                        <input type="number" id="currentEditContractSellerPrice" min="0.01" step="0.01" value="1.00">
+                    </div>
+                    <button onclick="executeEditContractSeller()">Update Price</button>
+                </div>
+                <div id="currentEditContractBuyerForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Amount/tick:</label>
+                        <input type="number" id="currentEditContractBuyerAmount" min="1" value="1">
+                    </div>
+                    <button onclick="executeEditContractBuyer()">Update Amount</button>
+                </div>
+                <div id="currentEditInternalTransferForm" style="display: none;">
+                    <div class="form-row">
+                        <label>New Amount/tick:</label>
+                        <input type="number" id="currentEditInternalTransferAmount" min="1" value="1">
+                    </div>
+                    <button onclick="executeEditInternalTransfer()">Update Amount</button>
+                </div>
+                <button onclick="toggleForm('currentEdit')" class="secondary">Close</button>
+            </div>
+
+            <div id="currentCancel" class="action-form">
+                <div class="form-row">
+                    <label>Type:</label>
+                    <select id="currentCancelType" onchange="updateCancelOptions()">
+                        <option value="offer">Sell Offer</option>
+                        <option value="contract">Contract</option>
+                        <option value="internal-transfer">Internal Transfer</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Select:</label>
+                    <select id="currentCancelSelect"></select>
+                </div>
+                <button onclick="executeCancel()">Cancel</button>
+                <button onclick="toggleForm('currentCancel')" class="secondary">Close</button>
+            </div>
+
+            <div id="currentSetRetailPrice" class="action-form">
+                <div class="form-row">
+                    <label>Retail Facility:</label>
+                    <select id="currentRetailFacility" onchange="updateRetailPriceDisplay()">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Resource:</label>
+                    <select id="currentRetailResource">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>Price per Unit:</label>
+                    <input type="number" id="currentRetailPrice" step="0.01" min="0" value="10.00">
+                </div>
+                <div class="form-row">
+                    <label style="width: auto; color: #9cdcfe; font-size: 12px;" id="currentRetailPriceInfo"></label>
+                </div>
+                <button onclick="executeSetRetailPrice()">Set Price</button>
+                <button onclick="toggleForm('currentSetRetailPrice')" class="secondary">Close</button>
+            </div>
+        </div>
+
+
+
+        <div class="market-display" id="marketDisplay"></div>
+
+        <div class="output" id="output">Tick 0</div>
+    </div>
+
+    <!-- Supabase CDN for browser -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script type="module">
+        // Initialize Supabase client for browser
+        const VITE_SUPABASE_URL = 'https://mjeduinijotdaxshkarf.supabase.co';
+        const VITE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZWR1aW5pam90ZGF4c2hrYXJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0MTgzNDksImV4cCI6MjA1MTk5NDM0OX0.1m3WHZE7E0EhqQRdT8kSST0-yrB6hWGRsIiXLXSu5GU';
+        
+        window.supabaseClient = window.supabase.createClient(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY);
+        
+        import { GameEngine } from './dist/game/GameEngine.js';
+        import { FacilityRegistry } from './dist/game/FacilityRegistry.js';
+        import { ResourceRegistry, DEFAULT_CONSUMPTION_RATES } from './dist/game/ResourceRegistry.js';
+        import { RecipeRegistry } from './dist/game/RecipeRegistry.js';
+        import { CityRegistry } from './dist/game/CityRegistry.js';
+        import { AdminFunctions } from './dist/game/adminFunctions.js';
+        import { Company } from './dist/game/Company.js';
+
+        // Initialize game
+        let game = new GameEngine();
+        let alice, bob;
+        let autoTickInterval = null;
+        let isLoaded = false;
+
+        // Try to load from database first
+        async function initializeGame() {
+            try {
+                console.log('Attempting to load game from database...');
+                const loadResult = await game.loadAll();
+                
+                if (loadResult.success) {
+                    // Try to find existing companies
+                    alice = await Company.load('alice');
+                    bob = await Company.load('bob');
+                    
+                    if (alice && bob) {
+                        console.log('✅ Game loaded from database');
+                        addMessage('Game loaded from database', 'success');
+                        isLoaded = true;
+                    } else {
+                        throw new Error('Companies not found in database');
+                    }
+                } else {
+                    throw new Error('Failed to load game');
+                }
+            } catch (err) {
+                console.log('No saved game found, creating new game');
+                // Create new game if load fails
+                alice = game.addCompany('alice', 'Alice Corp');
+                bob = game.addCompany('bob', 'Bob Industries');
+                addMessage('New game created', 'info');
+            }
+            
+            // Make globally available
+            window.game = game;
+            window.alice = alice;
+            window.bob = bob;
+            
+            // Initialize UI
+            initializeUI();
+        }
+
+        // Make functions globally available
+        window.game = game;
+        window.alice = alice;
+        window.FacilityRegistry = FacilityRegistry;
+        window.ResourceRegistry = ResourceRegistry;
+        window.RecipeRegistry = RecipeRegistry;
+        window.CityRegistry = CityRegistry;
+        window.bob = bob;
+
+        function addMessage(text, type = 'info') {
+            const log = document.getElementById('messageLog');
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.textContent = text;
+            log.appendChild(message);
+            log.scrollTop = log.scrollHeight;
+
+            // Keep only last 20 messages
+            while (log.children.length > 20) {
+                log.removeChild(log.firstChild);
+            }
+        }
+
+        // Get the current selected company
+        function getCurrentCompany() {
+            const selector = document.getElementById('companySelector');
+            const currentId = selector.value;
+            return currentId === 'alice' ? alice : bob;
+        }
+
+        // Get current company display name
+        function getCurrentCompanyName() {
+            const selector = document.getElementById('companySelector');
+            const currentId = selector.value;
+            return currentId === 'alice' ? 'Alice Corp' : 'Bob Industries';
+        }
+
+        // Switch company and update UI
+        window.switchCompany = function () {
+            const currentCompany = getCurrentCompany();
+            const currentName = getCurrentCompanyName();
+
+            // Update company header
+            document.getElementById('currentCompanyHeader').innerHTML =
+                `<span>${currentName}</span><span class="balance" id="currentCompanyBalance">$${currentCompany.balance.toFixed(2)}</span>`;
+
+            // Update actions title
+            document.getElementById('currentCompanyActionsTitle').textContent =
+                `${currentName} Actions`;
+
+            // Update current balance display
+            document.getElementById('currentBalance').textContent =
+                `$${currentCompany.balance.toFixed(2)}`;
+
+            // Close all forms
+            document.querySelectorAll('.action-form').forEach(f => f.classList.remove('active'));
+        };
+
+        window.toggleForm = function (formId) {
+            const form = document.getElementById(formId);
+            const isActive = form.classList.contains('active');
+
+            // Close all forms
+            document.querySelectorAll('.action-form').forEach(f => f.classList.remove('active'));
+
+            // Toggle this form
+            if (!isActive) {
+                form.classList.add('active');
+                updateFormOptions(formId);
+            }
+        };
+
+        function updateFormOptions(formId) {
+            const company = getCurrentCompany();
+
+            // Update facility dropdowns
+            if (formId.includes('Transfer') && !formId.includes('Internal')) {
+                updateFacilityDropdowns('currentTransferFrom', company);
+                updateFacilityDropdowns('currentTransferTo', company);
+                updateResourceDropdowns('currentTransferResource');
+            } else if (formId.includes('InternalTransfer')) {
+                updateWarehouseDropdowns('currentInternalTransferFrom', company);
+                updateWarehouseDropdowns('currentInternalTransferTo', company);
+                updateResourceDropdowns('currentInternalTransferResource');
+            } else if (formId.includes('Upgrade')) {
+                updateUpgradeFacilityDropdown('current', company);
+            } else if (formId.includes('Degrade')) {
+                updateDegradeFacilityDropdown('current', company);
+            } else if (formId.includes('Workers')) {
+                updateWorkersFacilityDropdown('current', company);
+            } else if (formId.includes('SellOffer')) {
+                updateFacilityDropdowns('currentSellOfferFacility', company);
+                updateResourceDropdowns('currentSellOfferResource');
+            } else if (formId.includes('Contract')) {
+                updateFacilityDropdowns('currentContractFacility', company);
+                updateSellOffers('currentContractOffer');
+            } else if (formId.includes('Edit')) {
+                updateEditOptions('current');
+            } else if (formId.includes('Cancel')) {
+                updateCancelOptions('current');
+            } else if (formId.includes('Destroy')) {
+                updateDestroyFacilityDropdown('current', company);
+            } else if (formId.includes('SetRetailPrice')) {
+                updateRetailFacilityDropdown('current', company);
+                updateResourceDropdowns('currentRetailResource');
+            } else if (formId.includes('ChangeRecipe')) {
+                updateChangeRecipeDropdown('current');
+            }
+        }
+
+        function updateResourceDropdowns(selectId) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+
+            const resources = ResourceRegistry.getAll();
+            resources.forEach(resource => {
+                const option = document.createElement('option');
+                option.value = resource.id;
+                option.textContent = `${resource.icon} ${resource.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateFacilityDropdowns(selectId, company) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+
+            company.facilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `Facility ${index + 1} (${facility.type})`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateWarehouseDropdowns(selectId, company) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+
+            // Get all facilities with inventory (production and storage facilities)
+            const facilitiesWithInventory = company.facilities.filter(f =>
+                f.type !== 'office' && f.type !== 'retail'
+            );
+            if (facilitiesWithInventory.length === 0) {
+                select.innerHTML = '<option value="">No facilities with inventory</option>';
+                return;
+            }
+
+            facilitiesWithInventory.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                const isWarehouse = facility.type === 'warehouse' ? ' 📦' : '';
+                option.textContent = `${facility.name}${isWarehouse}`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateUpgradeFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}UpgradeFacility`);
+            const infoDiv = document.getElementById(`${prefix}UpgradeInfo`);
+            select.innerHTML = '';
+            infoDiv.textContent = '';
+
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+
+            company.facilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${facility.name} (Size ${facility.size})`;
+                select.appendChild(option);
+            });
+
+            // Add change listener to show upgrade info
+            select.onchange = function () {
+                const index = parseInt(select.value);
+                const facility = company.facilities[index];
+                if (facility) {
+                    const cost = facility.getUpgradeCost();
+                    const newSize = facility.size + 1;
+                    const currentRequired = facility.calculateRequiredWorkers();
+                    const newRequired = Math.ceil(FacilityRegistry.get(facility.type).workerMultiplier * Math.pow(newSize, 1.2));
+                    const newMultiplier = Math.sqrt(newSize);
+
+                    function updateDestroyFacilityDropdown(prefix, company) {
+                        const select = document.getElementById(`${prefix}DestroyFacility`);
+                        select.innerHTML = '';
+
+                        if (company.facilities.length === 0) {
+                            select.innerHTML = '<option value="">No facilities</option>';
+                            return;
+                        }
+
+                        company.facilities.forEach((facility, index) => {
+                            const option = document.createElement('option');
+                            option.value = index;
+                            option.textContent = `${facility.name} (${facility.type}, ${facility.city.name})`;
+                            select.appendChild(option);
+                        });
+                    }
+                    // Only show output info for production facilities
+                    if (facility.getProductionMultiplier) {
+                        infoDiv.textContent = `Upgrade to Size ${newSize}: Cost $${cost.toFixed(2)} | Required Workers ${currentRequired}→${newRequired} | Output ${facility.getProductionMultiplier().toFixed(2)}x→${newMultiplier.toFixed(2)}x`;
+                    } else {
+                        infoDiv.textContent = `Upgrade to Size ${newSize}: Cost $${cost.toFixed(2)} | Required Workers ${currentRequired}→${newRequired}`;
+                    }
+                }
+            };
+
+            // Trigger initial display
+            select.onchange();
+        }
+
+        function updateDegradeFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}DegradeFacility`);
+            const infoDiv = document.getElementById(`${prefix}DegradeInfo`);
+            select.innerHTML = '';
+            infoDiv.textContent = '';
+
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+
+            company.facilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${facility.name} (Size ${facility.size})`;
+                select.appendChild(option);
+            });
+
+            // Add change listener to show degrade info
+            select.onchange = function () {
+                const index = parseInt(select.value);
+                const facility = company.facilities[index];
+                if (facility) {
+                    if (facility.size <= 1) {
+                        infoDiv.textContent = `Cannot degrade: Already at minimum size (1)`;
+                    } else {
+                        const refund = facility.getDegradeCost();
+                        const newSize = facility.size - 1;
+                        const currentRequired = facility.calculateRequiredWorkers();
+                        const newRequired = Math.ceil(FacilityRegistry.get(facility.type).workerMultiplier * Math.pow(newSize, 1.2));
+                        const newMultiplier = Math.sqrt(newSize);
+                        // Only show output info for production facilities
+                        if (facility.getProductionMultiplier) {
+                            infoDiv.textContent = `Degrade to Size ${newSize}: Refund $${refund.toFixed(2)} (50%) | Required Workers ${currentRequired}→${newRequired} | Output ${facility.getProductionMultiplier().toFixed(2)}x→${newMultiplier.toFixed(2)}x`;
+                        } else {
+                            infoDiv.textContent = `Degrade to Size ${newSize}: Refund $${refund.toFixed(2)} (50%) | Required Workers ${currentRequired}→${newRequired}`;
+                        }
+                    }
+                }
+            };
+
+            // Trigger initial display
+            select.onchange();
+        }
+
+        function updateWorkersFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}WorkersFacility`);
+            select.innerHTML = '';
+
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+
+            company.facilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${facility.name} (${facility.workers} workers)`;
+                select.appendChild(option);
+            });
+
+            // Trigger initial slider update
+            updateWorkersSlider(prefix);
+        }
+
+        function updateSellOffers(selectId) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+
+            const offers = game.getMarket().getAvailableSellOffers();
+
+            if (offers.length === 0) {
+                select.innerHTML = '<option value="">No sell offers</option>';
+                return;
+            }
+
+            offers.forEach(offer => {
+                const option = document.createElement('option');
+                option.value = offer.id;
+                const resourceDef = ResourceRegistry.get(offer.resource);
+                const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                option.textContent = `${icon}${offer.resource}: ${offer.amountInStock}/tick available (${offer.amountAvailable} listed) @ $${offer.pricePerUnit.toFixed(2)} (${offer.sellerName})`;
+                select.appendChild(option);
+            });
+        }
+
+        window.updateCancelOptions = function (prefix) {
+            const company = getCurrentCompany();
+            const type = document.getElementById(`${prefix}CancelType`).value;
+            const select = document.getElementById(`${prefix}CancelSelect`);
+            select.innerHTML = '';
+
+            if (type === 'offer') {
+                const offers = game.getMarket().getAllSellOffers().filter(o => o.sellerId === company.id);
+                if (offers.length === 0) {
+                    select.innerHTML = '<option value="">No offers to cancel</option>';
+                    return;
+                }
+                offers.forEach(offer => {
+                    const option = document.createElement('option');
+                    option.value = offer.id;
+                    const resourceDef = ResourceRegistry.get(offer.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${offer.resource}: ${offer.amountInStock}/tick available @ $${offer.pricePerUnit.toFixed(2)}/unit`;
+                    select.appendChild(option);
+                });
+            } else if (type === 'contract') {
+                const contracts = game.getMarket().getAllContracts().filter(c =>
+                    c.buyerId === company.id || c.sellerId === company.id
+                );
+                if (contracts.length === 0) {
+                    select.innerHTML = '<option value="">No contracts to cancel</option>';
+                    return;
+                }
+                contracts.forEach(contract => {
+                    const option = document.createElement('option');
+                    option.value = contract.id;
+                    const resourceDef = ResourceRegistry.get(contract.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    const role = contract.sellerId === company.id ? '(Selling)' : '(Buying)';
+                    const otherParty = contract.sellerId === company.id ? contract.buyerName : contract.sellerName;
+                    const status = contract.lastFailedTick !== null ? '[FAILED]' : '';
+                    option.textContent = `${icon}${contract.resource} ${contract.amountPerTick}/tick @ $${contract.pricePerUnit.toFixed(2)} ${role} with ${otherParty} ${status}`;
+                    select.appendChild(option);
+                });
+            } else if (type === 'internal-transfer') {
+                const transfers = game.getMarket().getAllInternalTransfers().filter(t => t.ownerId === company.id);
+                if (transfers.length === 0) {
+                    select.innerHTML = '<option value="">No internal transfers to cancel</option>';
+                    return;
+                }
+                transfers.forEach(transfer => {
+                    const option = document.createElement('option');
+                    option.value = transfer.id;
+                    const resourceDef = ResourceRegistry.get(transfer.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    const status = transfer.lastFailedTick !== null ? '[FAILED]' : '';
+                    option.textContent = `${icon}${transfer.resource} ${transfer.amountPerTick}/tick from ${transfer.fromFacilityName} to ${transfer.toFacilityName} ${status}`;
+                    select.appendChild(option);
+                });
+            }
+        };
+
+        window.updateEditOptions = function (prefix) {
+            const company = getCurrentCompany();
+            const type = document.getElementById(`${prefix}EditType`).value;
+            const select = document.getElementById(`${prefix}EditSelect`);
+            select.innerHTML = '';
+
+            // Hide all forms
+            document.getElementById(`${prefix}EditOfferForm`).style.display = 'none';
+            document.getElementById(`${prefix}EditContractSellerForm`).style.display = 'none';
+            document.getElementById(`${prefix}EditContractBuyerForm`).style.display = 'none';
+            document.getElementById(`${prefix}EditInternalTransferForm`).style.display = 'none';
+
+            if (type === 'offer') {
+                const offers = game.getMarket().getAllSellOffers().filter(o => o.sellerId === company.id);
+                if (offers.length === 0) {
+                    select.innerHTML = '<option value="">No offers to edit</option>';
+                    return;
+                }
+                offers.forEach(offer => {
+                    const option = document.createElement('option');
+                    option.value = offer.id;
+                    const resourceDef = ResourceRegistry.get(offer.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${offer.resource}: ${offer.amountAvailable}/tick @ $${offer.pricePerUnit.toFixed(2)}`;
+                    select.appendChild(option);
+                });
+            } else if (type === 'contract-seller') {
+                const contracts = game.getMarket().getAllContracts().filter(c => c.sellerId === company.id);
+                if (contracts.length === 0) {
+                    select.innerHTML = '<option value="">No selling contracts to edit</option>';
+                    return;
+                }
+                contracts.forEach(contract => {
+                    const option = document.createElement('option');
+                    option.value = contract.id;
+                    const resourceDef = ResourceRegistry.get(contract.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${contract.resource}: ${contract.amountPerTick}/tick @ $${contract.pricePerUnit.toFixed(2)} to ${contract.buyerName}`;
+                    select.appendChild(option);
+                });
+            } else if (type === 'contract-buyer') {
+                const contracts = game.getMarket().getAllContracts().filter(c => c.buyerId === company.id);
+                if (contracts.length === 0) {
+                    select.innerHTML = '<option value="">No buying contracts to edit</option>';
+                    return;
+                }
+                contracts.forEach(contract => {
+                    const option = document.createElement('option');
+                    option.value = contract.id;
+                    const resourceDef = ResourceRegistry.get(contract.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${contract.resource}: ${contract.amountPerTick}/tick @ $${contract.pricePerUnit.toFixed(2)} from ${contract.sellerName}`;
+                    select.appendChild(option);
+                });
+            } else if (type === 'internal-transfer') {
+                const transfers = game.getMarket().getAllInternalTransfers().filter(t => t.ownerId === company.id);
+                if (transfers.length === 0) {
+                    select.innerHTML = '<option value="">No internal transfers to edit</option>';
+                    return;
+                }
+                transfers.forEach(transfer => {
+                    const option = document.createElement('option');
+                    option.value = transfer.id;
+                    const resourceDef = ResourceRegistry.get(transfer.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    option.textContent = `${icon}${transfer.resource}: ${transfer.amountPerTick}/tick from ${transfer.fromFacilityName} to ${transfer.toFacilityName}`;
+                    select.appendChild(option);
+                });
+            }
+
+            populateEditForm(prefix);
+        };
+
+        window.populateEditForm = function (prefix) {
+            const type = document.getElementById(`${prefix}EditType`).value;
+            const id = document.getElementById(`${prefix}EditSelect`).value;
+
+            if (!id) return;
+
+            if (type === 'offer') {
+                const offer = game.getMarket().getSellOffer(id);
+                if (offer) {
+                    document.getElementById(`${prefix}EditOfferPrice`).value = offer.pricePerUnit;
+                    document.getElementById(`${prefix}EditOfferAmount`).value = offer.amountAvailable;
+                    document.getElementById(`${prefix}EditOfferForm`).style.display = 'block';
+                }
+            } else if (type === 'contract-seller') {
+                const contract = game.getMarket().getContract(id);
+                if (contract) {
+                    document.getElementById(`${prefix}EditContractSellerPrice`).value = contract.pricePerUnit;
+                    document.getElementById(`${prefix}EditContractSellerForm`).style.display = 'block';
+                }
+            } else if (type === 'contract-buyer') {
+                const contract = game.getMarket().getContract(id);
+                if (contract) {
+                    document.getElementById(`${prefix}EditContractBuyerAmount`).value = contract.amountPerTick;
+                    document.getElementById(`${prefix}EditContractBuyerForm`).style.display = 'block';
+                }
+            } else if (type === 'internal-transfer') {
+                const transfer = game.getMarket().getInternalTransfer(id);
+                if (transfer) {
+                    document.getElementById(`${prefix}EditInternalTransferAmount`).value = transfer.amountPerTick;
+                    document.getElementById(`${prefix}EditInternalTransferForm`).style.display = 'block';
+                }
+            }
+        };
+
+        function updateDemandSalesDisplay() {
+            const cities = CityRegistry.getAllCities();
+            let display = '📊 CITY DEMAND & RETAIL SALES:\n\n';
+
+            for (const city of cities) {
+                display += `🏙️ ${city.name} (Pop: ${city.population.toLocaleString()})\n`;
+
+                // Get all retail facilities in this city
+                const allCompanies = [alice, bob];
+                const retailers = [];
+                for (const company of allCompanies) {
+                    for (const facility of company.facilities) {
+                        if (facility.type === 'retail' && facility.city.name === city.name) {
+                            retailers.push(facility);
+                        }
+                    }
+                }
+
+                if (retailers.length === 0) {
+                    display += '  No retail facilities in this city\n\n';
+                    continue;
+                }
+
+                // Get the report from the City object
+                const report = city.getDemandSalesReport(retailers);
+
+                // Display each resource
+                for (const [resourceId, data] of report.resources.entries()) {
+                    display += `  ${resourceId.toUpperCase()}:\n`;
+                    display += `    Base Demand: ${data.baseDemand.toFixed(2)} units/tick (${data.consumptionRate.toFixed(4)} per capita)\n`;
+                    display += `    Total Sales: ${data.totalSales.toFixed(2)} units (${(data.fulfillmentRate * 100).toFixed(1)}% of base demand)\n`;
+
+                    for (const retailer of data.retailers) {
+                        const companyName = retailer.ownerId === 'alice' ? 'Alice Corp' : 'Bob Industries';
+                        display += `      • ${companyName} - ${retailer.facilityName}: `;
+                        display += `${retailer.sales.toFixed(2)} units @ $${retailer.price.toFixed(2)} `;
+                        display += `= $${retailer.revenue.toFixed(2)} revenue `;
+                        display += `(${(retailer.marketShare * 100).toFixed(1)}% share, ${retailer.currentStock.toFixed(0)} in stock)\n`;
+                    }
+
+                    display += '\n';
+                }
+            }
+
+            document.getElementById('demandSalesInfo').textContent = display;
+        }
+
+        function updateDisplay() {
+            // Update tick counter
+            const output = document.getElementById('output');
+            output.textContent = `Tick ${game.getTickCount()}`;
+
+            // Update market display with sell offers and contracts
+            const marketDisplay = document.getElementById('marketDisplay');
+            const market = game.getMarket();
+
+            let marketHtml = market.displayState();
+            marketDisplay.textContent = marketHtml;
+
+            // Update current company's info
+            const currentCompany = getCurrentCompany();
+            updateCurrentCompanyDisplay(currentCompany);
+
+            // Update demand and sales statistics
+            updateDemandSalesDisplay();
+        }
+
+        function updateCurrentCompanyDisplay(company) {
+            // Update current company header
+            const currentName = getCurrentCompanyName();
+            document.getElementById('currentCompanyHeader').innerHTML =
+                `<span>${currentName}</span><span class="balance" id="currentCompanyBalance">$${company.balance.toFixed(2)}</span>`;
+
+            // Update current balance display
+            document.getElementById('currentBalance').textContent =
+                `$${company.balance.toFixed(2)}`;
+
+            // Update facilities
+            const facilitiesDiv = document.getElementById('currentCompanyFacilities');
+
+            if (company.facilities.length === 0) {
+                facilitiesDiv.innerHTML = '<div style="color: #666; font-style: italic;">No facilities</div>';
+                return;
+            }
+
+            let html = '';
+            company.facilities.forEach((facility, index) => {
+                // Get facility size, workers, and output multiplier
+                const requiredWorkers = Math.ceil((FacilityRegistry.get(facility.type)?.workerMultiplier || 1.0) * Math.pow(facility.size, 1.2));
+
+                // Only production facilities have output multiplier
+                let sizeInfo;
+                if (facility.getProductionMultiplier) {
+                    const baseMultiplier = facility.getProductionMultiplier();
+                    const actualOutput = baseMultiplier * facility.effectivity;
+                    sizeInfo = `Size: ${facility.size} | Workers: ${facility.workers}/${requiredWorkers} | Output: ${actualOutput.toFixed(2)}x (Base: ${baseMultiplier.toFixed(2)}x × Effectivity: ${facility.effectivity.toFixed(2)})`;
+                } else {
+                    // Office or storage facility - no production multiplier
+                    sizeInfo = `Size: ${facility.size} | Workers: ${facility.workers}/${requiredWorkers} | Effectivity: ${facility.effectivity.toFixed(2)}`;
+                }
+
+                // Get facility status using getStatus() method
+                const statusStr = facility.getStatus();
+
+                // Get recipe and inventory (only for facilities with inventory)
+                let recipeName = 'N/A';
+                let inventoryStr = 'N/A';
+
+                if (facility.inventory) {
+                    // Production or Storage facility
+                    recipeName = facility.recipe ? facility.recipe.name : 'No recipe';
+
+                    // Get inventory with emojis
+                    const inventoryItems = Array.from(facility.inventory.entries())
+                        .filter(([_, amount]) => amount > 0)
+                        .map(([resource, amount]) => {
+                            const resourceDef = ResourceRegistry.get(resource);
+                            const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                            const weight = resourceDef ? resourceDef.weight : 1.0;
+                            const totalWeight = amount * weight;
+                            return `${icon}${resource}: ${amount} (${totalWeight.toFixed(1)}w)`;
+                        })
+                        .join('<br>          ');
+                    inventoryStr = inventoryItems || 'empty';
+                } else {
+                    // Office - no inventory
+                    recipeName = 'N/A (Office)';
+                    inventoryStr = 'N/A (Office)';
+                }
+
+                // Get inventory capacity info (offices don't use inventory)
+                let capacityStr = '';
+                if (facility.inventory) {
+                    const maxCapacity = facility.getMaxInventoryCapacity();
+                    const currentInventory = facility.getTotalInventory();
+                    const inventoryPercent = Math.round(facility.getInventoryPercentage() * 100);
+                    const overCapacityIndicator = facility.isInventoryOverCapacity() ? ' ⚠️ OVER CAPACITY' : '';
+                    capacityStr = `Capacity: ${currentInventory.toFixed(1)}/${maxCapacity} weight (${inventoryPercent}%)${overCapacityIndicator}`;
+                } else {
+                    capacityStr = 'Capacity: N/A (Administrative facility)';
+                }
+
+                // Get contracts info
+                const sellingContracts = facility.getSellingContracts();
+                const buyingContracts = facility.getBuyingContracts();
+                let contractsHtml = '';
+
+                if (sellingContracts.length > 0) {
+                    contractsHtml += '<br>        <span style="color: #4ec9b0;">Selling:</span><br>          ';
+                    contractsHtml += sellingContracts.map(c => {
+                        const resourceDef = ResourceRegistry.get(c.resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        const contract = game.getMarket().getContract(c.contractId);
+                        const status = contract && contract.lastFailedTick !== null ? ' [FAILED]' : '';
+                        return `${icon}${c.resource}: ${c.amountPerTick}/tick @ $${c.pricePerUnit.toFixed(2)}${status}`;
+                    }).join('<br>          ');
+                }
+
+                if (buyingContracts.length > 0) {
+                    contractsHtml += '<br>        <span style="color: #ce9178;">Buying:</span><br>          ';
+                    contractsHtml += buyingContracts.map(c => {
+                        const resourceDef = ResourceRegistry.get(c.resource);
+                        const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                        const contract = game.getMarket().getContract(c.contractId);
+                        const status = contract && contract.lastFailedTick !== null ? ' [FAILED]' : '';
+                        return `${icon}${c.resource}: ${c.amountPerTick}/tick @ $${c.pricePerUnit.toFixed(2)}${status}`;
+                    }).join('<br>          ');
+                }
+
+                // Get flow information (only for facilities with inventory)
+                let flowHtml = '';
+
+                if (facility.getImportRate) {
+                    // Imports
+                    const imports = facility.getImportRate();
+                    if (imports.size > 0) {
+                        flowHtml += '<br>        <span style="color: #9cdcfe;">Import:</span> ';
+                        const importParts = [];
+                        imports.forEach((rate, resource) => {
+                            const resourceDef = ResourceRegistry.get(resource);
+                            const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                            importParts.push(`${icon}+${rate.toFixed(2)}/tick`);
+                        });
+                        flowHtml += importParts.join(', ');
+                    }
+
+                    // Exports
+                    const exports = facility.getExportRate();
+                    if (exports.size > 0) {
+                        flowHtml += '<br>        <span style="color: #9cdcfe;">Export:</span> ';
+                        const exportParts = [];
+                        exports.forEach((rate, resource) => {
+                            const resourceDef = ResourceRegistry.get(resource);
+                            const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                            exportParts.push(`${icon}-${rate.toFixed(2)}/tick`);
+                        });
+                        flowHtml += exportParts.join(', ');
+                    }
+
+                    // Production (only for production facilities)
+                    if (facility.getProductionRate) {
+                        const production = facility.getProductionRate();
+                        if (production.size > 0) {
+                            flowHtml += '<br>        <span style="color: #4ec9b0;">Production:</span> ';
+                            const prodParts = [];
+                            production.forEach((rate, resource) => {
+                                const resourceDef = ResourceRegistry.get(resource);
+                                const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                                prodParts.push(`${icon}+${rate.toFixed(2)}/tick`);
+                            });
+                            flowHtml += prodParts.join(', ');
+                        }
+                    }
+
+                    // Consumption (only for production facilities)
+                    if (facility.getConsumptionRate) {
+                        const consumption = facility.getConsumptionRate();
+                        if (consumption.size > 0) {
+                            flowHtml += '<br>        <span style="color: #f48771;">Consumption:</span> ';
+                            const consParts = [];
+                            consumption.forEach((rate, resource) => {
+                                const resourceDef = ResourceRegistry.get(resource);
+                                const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                                consParts.push(`${icon}-${rate.toFixed(2)}/tick`);
+                            });
+                            flowHtml += consParts.join(', ');
+                        }
+                    }
+
+                    // Net flow
+                    const netFlow = facility.getNetFlow();
+                    if (netFlow.size > 0) {
+                        flowHtml += '<br>        <span style="color: #dcdcaa; font-weight: bold;">Net:</span> ';
+                        const netParts = [];
+                        netFlow.forEach((rate, resource) => {
+                            const resourceDef = ResourceRegistry.get(resource);
+                            const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                            const sign = rate >= 0 ? '+' : '';
+                            const color = rate >= 0 ? '#4ec9b0' : '#f48771';
+                            netParts.push(`<span style="color: ${color};">${icon}${sign}${rate.toFixed(2)}/tick</span>`);
+                        });
+                        flowHtml += netParts.join(', ');
+                    }
+
+                    // Depletion warnings
+                    let depletionHtml = '';
+                    const depletionWarnings = [];
+                    netFlow.forEach((rate, resource) => {
+                        if (rate < 0) {
+                            const ticks = facility.getTicksUntilDepletion(resource);
+                            if (ticks !== null) {
+                                const resourceDef = ResourceRegistry.get(resource);
+                                const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                                const color = ticks <= 5 ? '#f48771' : (ticks <= 10 ? '#ce9178' : '#9cdcfe');
+                                depletionWarnings.push(`<span style="color: ${color};">${icon}${ticks} ticks</span>`);
+                            }
+                        }
+                    });
+                    if (depletionWarnings.length > 0) {
+                        depletionHtml = '<br>        <span style="color: #f48771; font-weight: bold;">⚠️ Depleting:</span> ' + depletionWarnings.join(', ');
+                    }
+
+                    // Append depletion warnings to flow HTML
+                    flowHtml += depletionHtml;
+                }
+
+                // Retail-specific information
+                let retailHtml = '';
+                if (facility.type === 'retail') {
+                    retailHtml += '<br>        <span style="color: #4ec9b0; font-weight: bold;">💰 Retail Prices:</span><br>          ';
+                    const pricesList = [];
+                    const resources = ResourceRegistry.getAll();
+                    resources.forEach(resource => {
+                        const price = facility.getPrice(resource.id);
+                        if (price > 0) {
+                            pricesList.push(`${resource.icon} ${resource.name}: $${price.toFixed(2)}/unit`);
+                        }
+                    });
+                    if (pricesList.length === 0) {
+                        retailHtml += '<span style="color: #666;">No prices set</span>';
+                    } else {
+                        retailHtml += pricesList.join('<br>          ');
+                    }
+                    retailHtml += `<br>        <span style="color: #4ec9b0; font-weight: bold;">📊 Revenue This Tick:</span> $${facility.revenue.toFixed(2)}`;
+                }
+
+                html += `
+                    <div class="facility-item">
+                        <div class="facility-name">${facility.name}</div>
+                        <div class="facility-status" style="color: #666; font-size: 10px;">ID: ${facility.id}</div>
+                        <div class="facility-status" style="color: #ce9178;">📍 ${facility.city.name}, ${facility.city.country} (wealth ${facility.city.wealth})</div>
+                        <div class="facility-status" style="color: #9cdcfe;">${sizeInfo} | 💰 Wage: ${facility.getWagePerTick().toFixed(2)}€/tick</div>
+                        <div class="facility-status">Recipe: ${recipeName}</div>
+                        <div class="facility-status">Status: ${statusStr}</div>
+                        <div class="facility-status" style="color: #dcdcaa;">${capacityStr}</div>
+                        <div class="facility-inventory">Inventory: ${inventoryStr}${contractsHtml}${flowHtml}${retailHtml}</div>
+                    </div>
+                `;
+            });
+
+            facilitiesDiv.innerHTML = html;
+        }
+
+        window.processTick = async function () {
+            await game.processTick(true); // Enable autosave
+            addMessage(`Tick ${game.getTickCount() - 1} processed & saved`, 'success');
+            updateDisplay();
+        };
+
+        window.autoTick = function () {
+            const btn = document.getElementById('autoTickBtn');
+            if (autoTickInterval) {
+                clearInterval(autoTickInterval);
+                autoTickInterval = null;
+                btn.textContent = '▶️ Auto Tick (1s)';
+                addMessage('Auto tick stopped', 'info');
+            } else {
+                autoTickInterval = setInterval(() => {
+                    window.processTick(); // This now calls the async version with autosave
+                }, 1000);
+                btn.textContent = '⏸️ Stop Auto Tick';
+                addMessage('Auto tick started with autosave', 'success');
+            }
+        };
+
+        window.resetGame = async function () {
+            if (autoTickInterval) {
+                clearInterval(autoTickInterval);
+                autoTickInterval = null;
+                document.getElementById('autoTickBtn').textContent = '▶️ Auto Tick (1s)';
+            }
+            game = new GameEngine();
+            alice = game.addCompany('alice', 'Alice Corp');
+            bob = game.addCompany('bob', 'Bob Industries');
+            window.game = game;
+            window.alice = alice;
+            window.bob = bob;
+            
+            // Save the new game state
+            await game.saveAll();
+            
+            document.getElementById('messageLog').innerHTML = '<div class="message info">Game reset and saved. Ready to play!</div>';
+            updateDisplay();
+        };
+
+        window.createFacility = function () {
+            const company = getCurrentCompany();
+            const facilityType = document.getElementById('currentFacilityType').value;
+            const cityValue = document.getElementById('currentFacilityCity').value;
+
+            // Parse city from "CityName,Country" format
+            const [cityName, country] = cityValue.split(',');
+            const city = CityRegistry.getCity(cityName, country);
+
+            if (!city) {
+                addMessage(`❌ City not found: ${cityName}, ${country}`, 'error');
+                return;
+            }
+
+            // Check if office is required but missing
+            if (facilityType !== 'office' && !company.hasOfficeInCountry(country)) {
+                addMessage(`❌ Cannot build ${facilityType} in ${country}. An Office is required in this country first!`, 'error');
+                return;
+            }
+
+            // Check if trying to build a second office in the same country
+            if (facilityType === 'office' && company.hasOfficeInCountry(country)) {
+                addMessage(`❌ Cannot build Office in ${country}. Only one office per country is allowed!`, 'error');
+                return;
+            }
+
+            const facility = company.createFacility(facilityType, city);
+            if (facility) {
+                addMessage(`✅ ${company.name} built a ${facilityType} in ${city.name} (Size ${facility.size}, ${facility.workers} workers, ${facility.getWagePerTick().toFixed(2)}€/tick wage)!`, 'success');
+            } else {
+                addMessage(`❌ Failed to build ${facilityType}. Not enough funds?`, 'error');
+            }
+            updateDisplay();
+        };
+
+        window.executeTransfer = function () {
+            const company = getCurrentCompany();
+
+            if (company.facilities.length < 2) {
+                addMessage('Need at least 2 facilities to transfer resources!', 'error');
+                return;
+            }
+
+            const fromIndex = parseInt(document.getElementById('currentTransferFrom').value);
+            const toIndex = parseInt(document.getElementById('currentTransferTo').value);
+            const resource = document.getElementById('currentTransferResource').value;
+            const amount = parseInt(document.getElementById('currentTransferAmount').value);
+
+            const from = company.facilities[fromIndex];
+            const to = company.facilities[toIndex];
+
+            if (from && to) {
+                const success = company.transferResource(from, to, resource, amount);
+                if (success) {
+                    const resourceDef = ResourceRegistry.get(resource);
+                    const icon = resourceDef ? resourceDef.icon : '';
+                    addMessage(`✅ Transferred ${amount} ${icon} ${resource} from Facility ${fromIndex + 1} to Facility ${toIndex + 1}`, 'success');
+                    toggleForm('currentTransfer');
+                } else {
+                    addMessage(`❌ Transfer failed. Not enough resources?`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeCreateInternalTransfer = function () {
+            const company = getCurrentCompany();
+
+            // Get all facilities with inventory (production and storage facilities)
+            const facilitiesWithInventory = company.facilities.filter(f =>
+                f.type !== 'office' && f.type !== 'retail'
+            );
+            const warehouses = company.facilities.filter(f => f.type === 'warehouse');
+
+            if (facilitiesWithInventory.length < 2) {
+                addMessage('Need at least 2 facilities with inventory to create internal transfers!', 'error');
+                return;
+            }
+
+            if (warehouses.length < 1) {
+                addMessage('Need at least 1 warehouse to create internal transfers!', 'error');
+                return;
+            }
+
+            const fromIndex = parseInt(document.getElementById('currentInternalTransferFrom').value);
+            const toIndex = parseInt(document.getElementById('currentInternalTransferTo').value);
+            const resource = document.getElementById('currentInternalTransferResource').value;
+            const amount = parseInt(document.getElementById('currentInternalTransferAmount').value);
+
+            const from = facilitiesWithInventory[fromIndex];
+            const to = facilitiesWithInventory[toIndex];
+
+            if (from && to) {
+                const transfer = company.createInternalTransfer(game.getMarket(), from, to, resource, amount);
+                if (transfer) {
+                    const resourceDef = ResourceRegistry.get(resource);
+                    const icon = resourceDef ? resourceDef.icon : '';
+                    addMessage(`✅ Created internal transfer: ${amount} ${icon} ${resource}/tick from ${from.name} to ${to.name}`, 'success');
+                    toggleForm('currentInternalTransfer');
+                } else {
+                    addMessage(`❌ Internal transfer creation failed! At least one facility must be a warehouse.`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeUpgrade = function () {
+            const company = getCurrentCompany();
+
+            if (company.facilities.length === 0) {
+                addMessage('No facilities to upgrade!', 'error');
+                return;
+            }
+
+            const facilityIndex = parseInt(document.getElementById('currentUpgradeFacility').value);
+            const facility = company.facilities[facilityIndex];
+
+            if (facility) {
+                const oldSize = facility.size;
+                const oldWorkers = facility.workers;
+                const cost = facility.getUpgradeCost();
+
+                const success = company.upgradeFacility(facility);
+                if (success) {
+                    addMessage(`✅ Upgraded ${facility.name}! Size ${oldSize}→${facility.size}, Workers ${oldWorkers}→${facility.workers}, Cost: $${cost.toFixed(2)}`, 'success');
+                    toggleForm('currentUpgrade');
+                } else {
+                    addMessage(`❌ Upgrade failed. Not enough funds? Need $${cost.toFixed(2)}`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeDegrade = function () {
+            const company = getCurrentCompany();
+
+            if (company.facilities.length === 0) {
+                addMessage('No facilities to degrade!', 'error');
+                return;
+            }
+
+            const facilityIndex = parseInt(document.getElementById('currentDegradeFacility').value);
+            const facility = company.facilities[facilityIndex];
+
+            if (facility) {
+                if (facility.size <= 1) {
+                    addMessage(`❌ Cannot degrade ${facility.name}: Already at minimum size (1)`, 'error');
+                    return;
+                }
+
+                const oldSize = facility.size;
+                const oldWorkers = facility.workers;
+                const refund = facility.getDegradeCost();
+
+                const success = company.degradeFacility(facility);
+                if (success) {
+                    addMessage(`📉 Degraded ${facility.name}! Size ${oldSize}→${facility.size}, Workers ${oldWorkers}→${facility.workers}, Refund: $${refund.toFixed(2)}`, 'info');
+                    toggleForm('currentDegrade');
+                } else {
+                    addMessage(`❌ Degrade failed`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.destroyFacility = function (prefix) {
+            const company = getCurrentCompany();
+
+            if (company.facilities.length === 0) {
+                addMessage('No facilities to destroy!', 'error');
+                return;
+            }
+
+            const selectId = prefix + 'DestroyFacility';
+            const facilityIndex = parseInt(document.getElementById(selectId).value);
+            const facility = company.facilities[facilityIndex];
+
+            if (facility) {
+                const facilityName = facility.name;
+                const facilityType = facility.type;
+                const country = facility.city.country;
+
+                // Warning for destroying offices
+                if (facilityType === 'office') {
+                    const otherOfficesInCountry = company.facilities.filter(
+                        f => f.type === 'office' && f.city.country === country && f.id !== facility.id
+                    ).length;
+
+                    if (otherOfficesInCountry === 0) {
+                        const facilitiesInCountry = company.facilities.filter(
+                            f => f.city.country === country && f.id !== facility.id
+                        ).length;
+
+                        if (facilitiesInCountry > 0 && !confirm(
+                            `⚠️ WARNING: Destroying this office will cause ${facilitiesInCountry} other facilities in ${country} to have 0% effectivity! Continue?`
+                        )) {
+                            return;
+                        }
+                    }
+                }
+
+                const success = company.destroyFacility(facility);
+                if (success) {
+                    addMessage(`🗑️ Destroyed ${facilityName}`, 'info');
+                    toggleForm(prefix + 'Destroy');
+                } else {
+                    addMessage(`❌ Failed to destroy facility`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.updateWorkersSlider = function (prefix) {
+            const company = getCurrentCompany();
+            const facilityIndex = parseInt(document.getElementById(`${prefix}WorkersFacility`).value);
+            const facility = company.facilities[facilityIndex];
+
+            if (facility) {
+                const requiredWorkers = facility.calculateRequiredWorkers();
+                const maxWorkers = requiredWorkers * 10;
+                const currentWorkers = facility.workers;
+                const slider = document.getElementById(`${prefix}WorkersSlider`);
+
+                slider.min = 0;
+                slider.max = maxWorkers;
+                slider.value = currentWorkers;
+
+                document.getElementById(`${prefix}WorkersValue`).textContent = currentWorkers;
+                document.getElementById(`${prefix}WorkersInfo`).innerHTML =
+                    `Current: ${currentWorkers} workers | Required: ${requiredWorkers} workers | Max: ${maxWorkers} workers<br>` +
+                    `Current Wage: ${facility.getWagePerTick().toFixed(2)}€/tick`;
+            }
+        };
+
+        window.updateWorkersDisplay = function (prefix) {
+            const company = getCurrentCompany();
+            const slider = document.getElementById(`${prefix}WorkersSlider`);
+            const facilityIndex = parseInt(document.getElementById(`${prefix}WorkersFacility`).value);
+            const facility = company.facilities[facilityIndex];
+
+            if (facility) {
+                const newWorkerCount = parseInt(slider.value);
+                const newWage = newWorkerCount * 1.0 * facility.city.wealth;
+
+                // Calculate preview effectivity
+                const requiredWorkers = facility.calculateRequiredWorkers();
+                const ratio = newWorkerCount / requiredWorkers;
+                let previewEffectivity;
+                if (ratio < 1) {
+                    previewEffectivity = ratio * ratio;
+                } else {
+                    previewEffectivity = 1 + Math.sqrt(ratio - 1);
+                }
+
+                // Calculate hiring/firing cost
+                const workerChange = Math.abs(newWorkerCount - facility.workers);
+                const hiringCost = 4 * 1.0 * facility.city.wealth * workerChange;
+                const action = newWorkerCount > facility.workers ? 'Hiring' : (newWorkerCount < facility.workers ? 'Firing' : 'No change');
+
+                document.getElementById(`${prefix}WorkersValue`).textContent = newWorkerCount;
+
+                // Update wage and effectivity preview
+                const maxWorkers = requiredWorkers * 10;
+                const costStr = workerChange > 0 ? `<br>${action} Cost: $${hiringCost.toFixed(2)} (${workerChange} workers × $${(4 * 1.0 * facility.city.wealth).toFixed(2)})` : '';
+                document.getElementById(`${prefix}WorkersInfo`).innerHTML =
+                    `Current: ${facility.workers} workers | Required: ${requiredWorkers} workers | Max: ${maxWorkers} workers<br>` +
+                    `Preview Wage: ${newWage.toFixed(2)}€/tick (currently ${facility.getWagePerTick().toFixed(2)}€/tick)<br>` +
+                    `Preview Effectivity: ${previewEffectivity.toFixed(2)} (currently ${facility.effectivity.toFixed(2)})` +
+                    costStr;
+            }
+        };
+
+        window.executeSetWorkers = function () {
+            const company = getCurrentCompany();
+
+            if (company.facilities.length === 0) {
+                addMessage('No facilities to manage workers!', 'error');
+                return;
+            }
+
+            const facilityIndex = parseInt(document.getElementById('currentWorkersFacility').value);
+            const facility = company.facilities[facilityIndex];
+            const newWorkerCount = parseInt(document.getElementById('currentWorkersSlider').value);
+
+            if (facility) {
+                const oldWorkers = facility.workers;
+                const oldWage = facility.getWagePerTick();
+                const oldBalance = company.balance;
+                const workerChange = Math.abs(newWorkerCount - oldWorkers);
+                const hiringCost = 4 * 1.0 * facility.city.wealth * workerChange;
+
+                const success = company.setFacilityWorkers(facility, newWorkerCount);
+                if (success) {
+                    const newWage = facility.getWagePerTick();
+                    const diff = newWorkerCount - oldWorkers;
+                    const action = diff > 0 ? 'Hired' : 'Fired';
+                    addMessage(`✅ ${action} ${Math.abs(diff)} workers at ${facility.name}! Cost: $${hiringCost.toFixed(2)} | Workers: ${oldWorkers}→${facility.workers}, Wage: ${oldWage.toFixed(2)}→${newWage.toFixed(2)}€/tick, Effectivity: ${facility.effectivity.toFixed(2)}`, 'success');
+                    toggleForm('currentWorkers');
+                } else {
+                    const maxWorkers = facility.calculateRequiredWorkers() * 10;
+                    if (company.balance < hiringCost) {
+                        addMessage(`❌ Insufficient balance! Need $${hiringCost.toFixed(2)}, have $${company.balance.toFixed(2)}`, 'error');
+                    } else {
+                        addMessage(`❌ Failed to set worker count. Must be between 0 and ${maxWorkers}`, 'error');
+                    }
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeCreateSellOffer = function () {
+            const company = getCurrentCompany();
+
+            if (company.facilities.length === 0) {
+                addMessage('Need at least 1 facility to create sell offer!', 'error');
+                return;
+            }
+
+            const facilityIndex = parseInt(document.getElementById('currentSellOfferFacility').value);
+            const resource = document.getElementById('currentSellOfferResource').value;
+            const amount = parseInt(document.getElementById('currentSellOfferAmount').value);
+            const price = parseFloat(document.getElementById('currentSellOfferPrice').value);
+
+            const facility = company.facilities[facilityIndex];
+
+            if (facility) {
+                const offer = company.createSellOffer(
+                    game.getMarket(),
+                    facility,
+                    resource,
+                    amount,
+                    price
+                );
+
+                if (offer) {
+                    const resourceDef = ResourceRegistry.get(resource);
+                    const icon = resourceDef ? resourceDef.icon : '';
+                    addMessage(`✅ Created sell offer: ${amount} ${icon} ${resource}/tick @ $${price.toFixed(2)}/unit`, 'success');
+                    toggleForm('currentSellOffer');
+                } else {
+                    addMessage(`❌ Sell offer creation failed!`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeCreateContract = function () {
+            const company = getCurrentCompany();
+            const otherCompany = company.id === 'alice' ? bob : alice;
+
+            if (company.facilities.length === 0) {
+                addMessage('Need at least 1 facility to receive resources!', 'error');
+                return;
+            }
+
+            const market = game.getMarket();
+            const offerId = document.getElementById('currentContractOffer').value;
+            const facilityIndex = parseInt(document.getElementById('currentContractFacility').value);
+            const amount = parseInt(document.getElementById('currentContractAmount').value);
+
+            const offer = market.getSellOffer(offerId);
+            const facility = company.facilities[facilityIndex];
+
+            if (offer && facility) {
+                const contract = company.acceptSellOffer(
+                    market,
+                    otherCompany,
+                    offer.id,
+                    facility,
+                    amount,
+                    game.getTickCount()
+                );
+
+                if (contract) {
+                    const resourceDef = ResourceRegistry.get(contract.resource);
+                    const icon = resourceDef ? resourceDef.icon + ' ' : '';
+                    addMessage(`✅ Created contract: ${amount} ${icon}${contract.resource}/tick @ $${contract.pricePerUnit.toFixed(2)}/unit with ${contract.sellerName}`, 'success');
+                    toggleForm('currentContract');
+                } else {
+                    addMessage(`❌ Contract creation failed. Can't buy from yourself or not enough available?`, 'error');
+                }
+                updateDisplay();
+            }
+        };
+
+        window.executeCancel = function () {
+            const company = getCurrentCompany();
+            const type = document.getElementById('currentCancelType').value;
+            const id = document.getElementById('currentCancelSelect').value;
+
+            if (!id) {
+                addMessage('Nothing selected to cancel!', 'error');
+                return;
+            }
+
+            const market = game.getMarket();
+            let success = false;
+
+            if (type === 'offer') {
+                success = company.cancelSellOffer(market, id);
+                if (success) {
+                    addMessage(`✅ Sell offer cancelled`, 'success');
+                } else {
+                    addMessage(`❌ Failed to cancel sell offer`, 'error');
+                }
+            } else if (type === 'contract') {
+                // Get the contract to find the other company
+                const contract = market.getContract(id);
+                if (contract) {
+                    // Need to clean up both sides
+                    const otherCompany = contract.sellerId === company.id ?
+                        (company.id === 'alice' ? bob : alice) :
+                        (company.id === 'alice' ? bob : alice);
+
+                    // Cancel from this company (will handle both facilities)
+                    success = company.cancelContract(market, id);
+
+                    // Also remove from the other company's facility
+                    if (contract.sellerId !== company.id) {
+                        otherCompany.removeContractFromFacility(id, contract.sellerFacilityId);
+                    } else {
+                        otherCompany.removeContractFromFacility(id, contract.buyerFacilityId);
+                    }
+
+                    if (success) {
+                        addMessage(`✅ Contract cancelled`, 'success');
+                    } else {
+                        addMessage(`❌ Failed to cancel contract`, 'error');
+                    }
+                } else {
+                    addMessage(`❌ Contract not found`, 'error');
+                }
+            } else if (type === 'internal-transfer') {
+                success = company.cancelInternalTransfer(market, id);
+                if (success) {
+                    addMessage(`✅ Internal transfer cancelled`, 'success');
+                } else {
+                    addMessage(`❌ Failed to cancel internal transfer`, 'error');
+                }
+            }
+
+            if (success) {
+                toggleForm('currentCancel');
+            }
+            updateDisplay();
+        };
+
+        window.executeEditOffer = function () {
+            const company = getCurrentCompany();
+            const id = document.getElementById('currentEditSelect').value;
+            const newPrice = parseFloat(document.getElementById('currentEditOfferPrice').value);
+            const newAmount = parseInt(document.getElementById('currentEditOfferAmount').value);
+
+            if (!id) {
+                addMessage('No offer selected!', 'error');
+                return;
+            }
+
+            const success = company.updateSellOffer(game.getMarket(), id, newPrice, newAmount);
+
+            if (success) {
+                addMessage(`✅ Sell offer updated: ${newAmount}/tick @ $${newPrice.toFixed(2)}/unit`, 'success');
+                toggleForm('currentEdit');
+            } else {
+                addMessage(`❌ Failed to update sell offer`, 'error');
+            }
+            updateDisplay();
+        };
+
+        window.executeEditContractSeller = function () {
+            const company = getCurrentCompany();
+            const id = document.getElementById('currentEditSelect').value;
+            const newPrice = parseFloat(document.getElementById('currentEditContractSellerPrice').value);
+
+            if (!id) {
+                addMessage('No contract selected!', 'error');
+                return;
+            }
+
+            const success = company.updateContractPrice(game.getMarket(), id, newPrice);
+
+            if (success) {
+                addMessage(`✅ Contract price updated to $${newPrice.toFixed(2)}/unit`, 'success');
+                toggleForm('currentEdit');
+            } else {
+                addMessage(`❌ Failed to update contract price`, 'error');
+            }
+            updateDisplay();
+        };
+
+        window.executeEditContractBuyer = function () {
+            const company = getCurrentCompany();
+            const id = document.getElementById('currentEditSelect').value;
+            const newAmount = parseInt(document.getElementById('currentEditContractBuyerAmount').value);
+
+            if (!id) {
+                addMessage('No contract selected!', 'error');
+                return;
+            }
+
+            const success = company.updateContractAmount(game.getMarket(), id, newAmount);
+
+            if (success) {
+                addMessage(`✅ Contract amount updated to ${newAmount}/tick`, 'success');
+                toggleForm('currentEdit');
+            } else {
+                addMessage(`❌ Failed to update contract amount. Not enough in stock?`, 'error');
+            }
+            updateDisplay();
+        };
+
+        window.executeEditInternalTransfer = function () {
+            const company = getCurrentCompany();
+            const id = document.getElementById('currentEditSelect').value;
+            const newAmount = parseInt(document.getElementById('currentEditInternalTransferAmount').value);
+
+            if (!id) {
+                addMessage('No internal transfer selected!', 'error');
+                return;
+            }
+
+            const success = company.updateInternalTransferAmount(game.getMarket(), id, newAmount);
+
+            if (success) {
+                addMessage(`✅ Internal transfer amount updated to ${newAmount}/tick`, 'success');
+                toggleForm('currentEdit');
+            } else {
+                addMessage(`❌ Failed to update internal transfer amount`, 'error');
+            }
+            updateDisplay();
+        };
+
+        // ============================================================
+        // RETAIL PRICE FUNCTIONS
+        // ============================================================
+
+        function updateRetailFacilityDropdown(prefix, company) {
+            const select = document.getElementById(`${prefix}RetailFacility`);
+            select.innerHTML = '';
+
+            const retailFacilities = company.facilities.filter(f => f.type === 'retail');
+
+            if (retailFacilities.length === 0) {
+                const option = document.createElement('option');
+                option.textContent = '(No retail facilities)';
+                select.appendChild(option);
+                return;
+            }
+
+            retailFacilities.forEach((facility, index) => {
+                const option = document.createElement('option');
+                option.value = company.facilities.indexOf(facility);
+                option.textContent = `${facility.name} (${facility.city.name})`;
+                select.appendChild(option);
+            });
+
+            updateRetailPriceDisplay();
+        }
+
+        window.updateRetailPriceDisplay = function () {
+            const company = getCurrentCompany();
+            const facilityIndex = parseInt(document.getElementById('currentRetailFacility').value);
+            const resourceId = document.getElementById('currentRetailResource').value;
+            const infoDiv = document.getElementById('currentRetailPriceInfo');
+
+            if (isNaN(facilityIndex)) {
+                infoDiv.textContent = '';
+                return;
+            }
+
+            const facility = company.facilities[facilityIndex];
+            const currentPrice = facility.getPrice(resourceId);
+            const inventory = facility.getResource(resourceId);
+
+            infoDiv.textContent = `Current price: $${currentPrice.toFixed(2)}/unit | Inventory: ${inventory.toFixed(0)} units`;
+        };
+
+        window.executeSetRetailPrice = function () {
+            const company = getCurrentCompany();
+            const facilityIndex = parseInt(document.getElementById('currentRetailFacility').value);
+            const resourceId = document.getElementById('currentRetailResource').value;
+            const price = parseFloat(document.getElementById('currentRetailPrice').value);
+
+            if (isNaN(facilityIndex)) {
+                addMessage('❌ No retail facility selected!', 'error');
+                return;
+            }
+
+            if (isNaN(price) || price < 0) {
+                addMessage('❌ Invalid price! Must be a positive number.', 'error');
+                return;
+            }
+
+            const facility = company.facilities[facilityIndex];
+
+            if (facility.type !== 'retail') {
+                addMessage('❌ Selected facility is not a retail facility!', 'error');
+                return;
+            }
+
+            facility.setPrice(resourceId, price);
+
+            const resource = ResourceRegistry.get(resourceId);
+            addMessage(`✅ Set price for ${resource.name} to $${price.toFixed(2)}/unit at ${facility.name}`, 'success');
+            toggleForm('currentSetRetailPrice');
+            updateDisplay();
+        };
+
+        // ============================================================
+        // CHEAT FUNCTIONS
+        // ============================================================
+
+        window.cheatAddBalance = function () {
+            const company = getCurrentCompany();
+            const amount = parseFloat(document.getElementById('cheatAmount').value);
+
+            if (isNaN(amount) || amount < 0) {
+                addMessage('❌ Invalid amount! Must be a positive number.', 'error');
+                return;
+            }
+
+            if (AdminFunctions.addBalance(company, amount)) {
+                addMessage(`💰 CHEAT: Added $${amount.toFixed(2)} to ${company.name}'s balance (now $${company.balance.toFixed(2)})`, 'info');
+                updateDisplay();
+            } else {
+                addMessage('❌ Cheat failed!', 'error');
+            }
+        };
+
+        window.cheatSetBalance = function () {
+            const company = getCurrentCompany();
+            const amount = parseFloat(document.getElementById('cheatSetAmount').value);
+
+            if (isNaN(amount) || amount < 0) {
+                addMessage('❌ Invalid amount! Must be a positive number.', 'error');
+                return;
+            }
+
+            const oldBalance = company.balance;
+            if (AdminFunctions.setBalance(company, amount)) {
+                addMessage(`💰 CHEAT: Set ${company.name}'s balance to $${amount.toFixed(2)} (was $${oldBalance.toFixed(2)})`, 'info');
+                updateDisplay();
+            } else {
+                addMessage('❌ Cheat failed!', 'error');
+            }
+        };
+
+        window.updateChangeRecipeDropdown = function (prefix) {
+            const company = getCurrentCompany();
+            const select = document.getElementById(`${prefix}ChangeRecipeFacility`);
+            const recipeSelect = document.getElementById(`${prefix}ChangeRecipeType`);
+
+            select.innerHTML = '';
+            recipeSelect.innerHTML = '';
+
+            if (company.facilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities</option>';
+                return;
+            }
+
+            // Filter to only production facilities with multiple recipes
+            const productionFacilities = company.facilities.filter(f => {
+                const def = FacilityRegistry.get(f.type);
+                return def && def.allowedRecipes && def.allowedRecipes.length > 1;
+            });
+
+            if (productionFacilities.length === 0) {
+                select.innerHTML = '<option value="">No facilities with multiple recipes</option>';
+                return;
+            }
+
+            productionFacilities.forEach((facility, index) => {
+                const actualIndex = company.facilities.indexOf(facility);
+                const option = document.createElement('option');
+                option.value = actualIndex;
+                const recipeName = facility.recipe ? facility.recipe.name : 'None';
+                option.textContent = `${facility.name} (${recipeName})`;
+                select.appendChild(option);
+            });
+
+            // Set up change handler to update recipe list
+            select.onchange = function () {
+                const facilityIndex = parseInt(this.value);
+                if (isNaN(facilityIndex)) return;
+
+                const facility = company.facilities[facilityIndex];
+                const def = FacilityRegistry.get(facility.type);
+                recipeSelect.innerHTML = '';
+
+                if (def && def.allowedRecipes) {
+                    def.allowedRecipes.forEach(recipeName => {
+                        const recipe = RecipeRegistry.get(recipeName);
+                        if (recipe) {
+                            const option = document.createElement('option');
+                            option.value = recipeName;
+                            const isCurrent = facility.recipe && facility.recipe.name === recipeName;
+                            option.textContent = `${recipeName}${isCurrent ? ' (current)' : ''}`;
+                            recipeSelect.appendChild(option);
+                        }
+                    });
+                }
+            };
+
+            // Trigger initial display
+            select.onchange();
+        };
+
+        window.executeChangeRecipe = function () {
+            const company = getCurrentCompany();
+            const facilityIndex = parseInt(document.getElementById('currentChangeRecipeFacility').value);
+            const recipeName = document.getElementById('currentChangeRecipeType').value;
+
+            if (isNaN(facilityIndex) || !recipeName) {
+                addMessage('Invalid facility or recipe!', 'error');
+                return;
+            }
+
+            const facility = company.facilities[facilityIndex];
+            const recipe = RecipeRegistry.get(recipeName);
+
+            if (!recipe) {
+                addMessage(`❌ Recipe "${recipeName}" not found!`, 'error');
+                return;
+            }
+
+            if (facility.setRecipe && facility.setRecipe(recipe)) {
+                addMessage(`✅ Changed ${facility.name}'s recipe to "${recipeName}"`, 'success');
+                toggleForm('currentChangeRecipe');
+                updateDisplay();
+            } else {
+                addMessage(`❌ Failed to change recipe. This facility may not support recipe "${recipeName}".`, 'error');
+            }
+        };
+
+        // ============================================================
+
+        // Initialize UI (called after game is loaded/created)
+        function initializeUI() {
+            document.getElementById('facilitiesInfo').textContent = FacilityRegistry.displayFacilities();
+            document.getElementById('resourcesInfo').textContent = ResourceRegistry.displayResources();
+
+            // Display cities
+            const cities = CityRegistry.getAllCities();
+            const citiesText = '🏙️ CITIES:\n' + cities.map(city => city.toString()).join('\n');
+            document.getElementById('citiesInfo').textContent = citiesText;
+
+            // Initialize company selection
+            switchCompany();
+
+            updateDisplay();
+        }
+
+        // Start the game (load or create)
+        initializeGame();
+    </script>
+</body>
+
+</html>

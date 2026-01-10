@@ -3,7 +3,7 @@ import { ProductionFacility } from './ProductionFacility.js';
 import { StorageFacility } from './StorageFacility.js';
 import { Office } from './Office.js';
 import { RetailFacility } from './RetailFacility.js';
-import { Market, SellOffer, Contract } from './Market.js';
+import { ContractSystem, SellOffer, Contract, InternalTransfer } from './ContractSystem.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
 import { RecipeRegistry } from './RecipeRegistry.js';
 import { City } from './City.js';
@@ -14,11 +14,60 @@ export class Company {
   balance: number;
   facilities: FacilityBase[];
 
-  constructor(id: string, name: string) {
+  constructor(id: string, name: string, initialBalance: number = 10000) {
     this.id = id;
     this.name = name;
-    this.balance = 10000; // Starting balance
+    this.balance = initialBalance;
     this.facilities = [];
+  }
+
+  /**
+   * Save company data to database
+   */
+  async save(): Promise<{ success: boolean; error?: string }> {
+    // Dynamically import to avoid circular dependencies
+    const { CompanyRepository } = await import('../database/CompanyRepository.js');
+    const { FacilityRepository } = await import('../database/FacilityRepository.js');
+
+    // Save company
+    const companyResult = await CompanyRepository.save(this);
+    if (!companyResult.success) {
+      return companyResult;
+    }
+
+    // Save all facilities
+    for (const facility of this.facilities) {
+      const facilityResult = await FacilityRepository.save(facility);
+      if (!facilityResult.success) {
+        return facilityResult;
+      }
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * Load company and its facilities from database
+   */
+  static async load(nameOrId: string): Promise<Company | null> {
+    // Dynamically import to avoid circular dependencies
+    const { CompanyRepository } = await import('../database/CompanyRepository.js');
+    const { FacilityRepository } = await import('../database/FacilityRepository.js');
+
+    // Try to load by name first, then by ID
+    let company = await CompanyRepository.loadByName(nameOrId);
+    if (!company) {
+      company = await CompanyRepository.loadById(nameOrId);
+    }
+
+    if (!company) {
+      return null;
+    }
+
+    // Load facilities
+    company.facilities = await FacilityRepository.loadByCompanyId(company.id);
+
+    return company;
   }
 
   /**
@@ -29,7 +78,7 @@ export class Company {
    */
   createFacility(type: string, city: City): FacilityBase | null {
     const definition = FacilityRegistry.get(type);
-    
+
     // Check if facility type exists
     if (!definition) {
       return null;
@@ -53,14 +102,14 @@ export class Company {
     // Count existing facilities of this type
     const typeCount = this.facilities.filter(f => f.type === type).length;
     const facilityNumber = typeCount + 1;
-    
+
     // Generate facility name: [CompanyName] [FacilityType] #X
     const facilityName = `${this.name} ${definition.name} #${facilityNumber}`;
 
     // Deduct cost and create the appropriate facility subclass
     this.balance -= definition.cost;
     let facility: FacilityBase;
-    
+
     switch (definition.category) {
       case 'production':
         facility = new ProductionFacility(type, this.id, facilityName, city);
@@ -78,7 +127,7 @@ export class Company {
         // Fallback to production if category unknown
         facility = new ProductionFacility(type, this.id, facilityName, city);
     }
-    
+
     // Set controlling office for non-office facilities
     if (definition.category !== 'office') {
       const office = this.getOfficeInCountry(city.country);
@@ -87,12 +136,12 @@ export class Company {
         office.addControlledFacility(facility.id);
       }
     }
-    
+
     // Initialize capacity for facilities with inventory
     if (facility instanceof ProductionFacility || facility instanceof StorageFacility || facility instanceof RetailFacility) {
       facility.updateInventoryCapacityForTick();
     }
-    
+
     this.facilities.push(facility);
 
     // Set default recipe for production facilities
@@ -143,7 +192,7 @@ export class Company {
       const remainingOffices = this.facilities.filter(
         f => f.type === 'office' && f.city.country === country && f.id !== facility.id
       );
-      
+
       // If no offices remain, all facilities in that country lose effectivity
       if (remainingOffices.length === 0) {
         this.facilities
@@ -164,7 +213,7 @@ export class Company {
   updateAdministrativeLoads(): void {
     // Get all offices
     const offices = this.facilities.filter(f => f instanceof Office) as Office[];
-    
+
     offices.forEach(office => {
       // Calculate total wages of controlled facilities
       let totalWages = 0;
@@ -174,7 +223,7 @@ export class Company {
           totalWages += facility.getWagePerTick();
         }
       });
-      
+
       // Update the office's administrative load
       office.updateAdministrativeLoad(totalWages);
     });
@@ -189,14 +238,14 @@ export class Company {
   updateOfficeEffectivity(): void {
     // Get all countries where we have facilities
     const countries = new Set(this.facilities.map(f => f.city.country));
-    
+
     countries.forEach(country => {
       // Find the office in this country (should only be one per country)
       const office = this.facilities.find(f => f instanceof Office && f.city.country === country) as Office | undefined;
-      
+
       // Get the office's effectivity as a hard cap (0-1)
       const officeEffectivityCap = office ? Math.min(1, Math.max(0, office.effectivity)) : 0;
-      
+
       // Update all non-office facilities in this country
       this.facilities
         .filter(f => !(f instanceof Office) && f.city.country === country)
@@ -219,7 +268,7 @@ export class Company {
     }
 
     const cost = facility.getUpgradeCost();
-    
+
     // Check if company has enough balance
     if (this.balance < cost) {
       return false;
@@ -284,7 +333,7 @@ export class Company {
 
     // Attempt to set worker count
     const success = facility.setWorkerCount(workerCount);
-    
+
     if (success) {
       // Deduct the hiring/firing cost
       this.balance -= hiringCost;
@@ -333,7 +382,7 @@ export class Company {
 
     // Attempt to sell
     const revenue = retailFacility.sellProducts(resource, quantity, pricePerUnit);
-    
+
     // Add revenue to company balance
     if (revenue > 0) {
       this.balance += revenue;
@@ -376,7 +425,7 @@ export class Company {
    * Resources are NOT reserved - they stay in facility inventory
    */
   createSellOffer(
-    market: Market,
+    contractSystem: ContractSystem,
     facility: ProductionFacility | StorageFacility,
     resource: string,
     amountAvailable: number,
@@ -389,9 +438,9 @@ export class Company {
 
     // No check needed - resources are not reserved
     // The seller can list more than they have, contracts will just fail if resources aren't available
-    
+
     // Add sell offer to market
-    const offer = market.addSellOffer(
+    const offer = contractSystem.addSellOffer(
       this.id,
       this.name,
       facility.id,
@@ -407,33 +456,33 @@ export class Company {
    * Cancel a sell offer
    */
   cancelSellOffer(
-    market: Market,
+    contractSystem: ContractSystem,
     offerId: string
   ): boolean {
-    const offer = market.getSellOffer(offerId);
-    
+    const offer = contractSystem.getSellOffer(offerId);
+
     // Verify offer exists and belongs to this company
     if (!offer || offer.sellerId !== this.id) {
       return false;
     }
 
     // Remove offer from market
-    return market.removeSellOffer(offerId);
+    return contractSystem.removeSellOffer(offerId);
   }
 
   /**
    * Accept a sell offer and create a contract
    */
   acceptSellOffer(
-    market: Market,
+    contractSystem: ContractSystem,
     seller: Company,
     offerId: string,
     buyingFacility: ProductionFacility | StorageFacility,
     amountPerTick: number,
     currentTick: number
   ): Contract | null {
-    const offer = market.getSellOffer(offerId);
-    
+    const offer = contractSystem.getSellOffer(offerId);
+
     // Verify offer exists
     if (!offer) {
       return null;
@@ -454,14 +503,13 @@ export class Company {
       return null;
     }
 
-    // Create contract in market
-    const contract = market.createContract(
+    // Create contract in contract system
+    const contract = contractSystem.createContract(
       offer,
       this.id,
       this.name,
       buyingFacility.id,
-      amountPerTick,
-      currentTick
+      amountPerTick
     );
 
     if (!contract) {
@@ -472,7 +520,7 @@ export class Company {
     const sellerFacility = seller.facilities.find(f => f.id === offer.sellerFacilityId);
     if (!sellerFacility) {
       // Rollback contract creation
-      market.cancelContract(contract.id);
+      contractSystem.cancelContract(contract.id);
       return null;
     }
 
@@ -487,11 +535,11 @@ export class Company {
    * Cancel a contract (can be called by either buyer or seller)
    */
   cancelContract(
-    market: Market,
+    contractSystem: ContractSystem,
     contractId: string
   ): boolean {
-    const contract = market.getContract(contractId);
-    
+    const contract = contractSystem.getContract(contractId);
+
     // Verify contract exists
     if (!contract) {
       return false;
@@ -510,7 +558,7 @@ export class Company {
     if (contract.sellerId === this.id) {
       sellerFacility = this.facilities.find(f => f.id === contract.sellerFacilityId);
     }
-    
+
     // Find buyer facility (might be in this company or another)
     if (contract.buyerId === this.id) {
       buyerFacility = this.facilities.find(f => f.id === contract.buyerFacilityId);
@@ -525,26 +573,27 @@ export class Company {
     }
 
     // Cancel contract in market
-    return market.cancelContract(contractId) !== null;
+    return contractSystem.cancelContract(contractId) !== null;
   }
 
   /**
    * Update contract amount (buyer side)
    */
   updateContractAmount(
-    market: Market,
+    contractSystem: ContractSystem,
     contractId: string,
     newAmount: number
   ): boolean {
-    const contract = market.getContract(contractId);
-    
+    const contract = contractSystem.getContract(contractId);
+
     // Verify contract exists and this company is the buyer
     if (!contract || contract.buyerId !== this.id) {
       return false;
     }
 
-    // Update in market
-    if (!market.updateContractAmount(contractId, newAmount)) {
+    // Update in contract system
+    const result = contractSystem.updateContractAmount(contractId, newAmount);
+    if (!result) {
       return false;
     }
 
@@ -562,19 +611,19 @@ export class Company {
    * Update contract price (seller side)
    */
   updateContractPrice(
-    market: Market,
+    contractSystem: ContractSystem,
     contractId: string,
     newPrice: number
   ): boolean {
-    const contract = market.getContract(contractId);
-    
+    const contract = contractSystem.getContract(contractId);
+
     // Verify contract exists and this company is the seller
     if (!contract || contract.sellerId !== this.id) {
       return false;
     }
 
     // Update in market
-    if (!market.updateContractPrice(contractId, newPrice)) {
+    if (!contractSystem.updateContractPrice(contractId, newPrice)) {
       return false;
     }
 
@@ -592,19 +641,19 @@ export class Company {
    * Update sell offer price and/or amount (seller side)
    */
   updateSellOffer(
-    market: Market,
+    contractSystem: ContractSystem,
     offerId: string,
     newPrice?: number,
     newAmount?: number
   ): boolean {
-    const offer = market.getSellOffer(offerId);
-    
+    const offer = contractSystem.getSellOffer(offerId);
+
     // Verify offer exists and belongs to this company
     if (!offer || offer.sellerId !== this.id) {
       return false;
     }
 
-    return market.updateSellOffer(offerId, newPrice, newAmount);
+    return contractSystem.updateSellOffer(offerId, newPrice, newAmount);
   }
 
   /**
@@ -615,6 +664,147 @@ export class Company {
     const facility = this.facilities.find(f => f.id === facilityId);
     if (facility) {
       facility.removeContract(contractId);
+    }
+  }
+
+  // ========================================
+  // INTERNAL TRANSFER METHODS
+  // ========================================
+
+  /**
+   * Create an internal transfer between a warehouse and any other facility
+   * At least one facility must be a warehouse (storage facility)
+   */
+  createInternalTransfer(
+    contractSystem: ContractSystem,
+    fromFacility: FacilityBase,
+    toFacility: FacilityBase,
+    resource: string,
+    amountPerTick: number
+  ): InternalTransfer | null {
+    // Verify both facilities belong to this company
+    if (fromFacility.ownerId !== this.id || toFacility.ownerId !== this.id) {
+      return null;
+    }
+
+    // Verify at least one facility is a warehouse (storage facility)
+    // Verify at least one facility is a warehouse (storage facility)
+    const fromIsWarehouse = fromFacility.type === 'warehouse';
+    const toIsWarehouse = toFacility.type === 'warehouse';
+
+    if (!fromIsWarehouse && !toIsWarehouse) {
+      // At least one facility must be a warehouse
+      return null;
+    }
+
+    // Verify both facilities have inventory (Production or Storage facilities)
+    if (!(fromFacility instanceof ProductionFacility || fromFacility instanceof StorageFacility) ||
+      !(toFacility instanceof ProductionFacility || toFacility instanceof StorageFacility)) {
+      // Can't transfer to/from offices or retail facilities
+      return null;
+    }
+
+    // Verify they are different facilities
+    if (fromFacility.id === toFacility.id) {
+      return null;
+    }
+
+    // Create transfer in market
+    const transfer = contractSystem.createInternalTransfer(
+      this.id,
+      this.name,
+      fromFacility.id,
+      fromFacility.name,
+      toFacility.id,
+      toFacility.name,
+      resource,
+      amountPerTick
+    );
+
+    // Add transfer tracking to both facilities
+    fromFacility.addInternalTransfer(transfer.id, resource, amountPerTick, true);
+    toFacility.addInternalTransfer(transfer.id, resource, amountPerTick, false);
+
+    return transfer;
+  }
+
+  /**
+   * Cancel an internal transfer
+   */
+  cancelInternalTransfer(
+    contractSystem: ContractSystem,
+    transferId: string
+  ): boolean {
+    const transfer = contractSystem.getInternalTransfer(transferId);
+
+    // Verify transfer exists and belongs to this company
+    if (!transfer || transfer.ownerId !== this.id) {
+      return false;
+    }
+
+    // Remove from market
+    const canceledTransfer = contractSystem.cancelInternalTransfer(transferId);
+    if (!canceledTransfer) {
+      return false;
+    }
+
+    // Remove from both facilities
+    const fromFacility = this.facilities.find(f => f.id === transfer.fromFacilityId);
+    const toFacility = this.facilities.find(f => f.id === transfer.toFacilityId);
+
+    if (fromFacility) {
+      fromFacility.removeInternalTransfer(transferId);
+    }
+    if (toFacility) {
+      toFacility.removeInternalTransfer(transferId);
+    }
+
+    return true;
+  }
+
+  /**
+   * Update internal transfer amount
+   */
+  updateInternalTransferAmount(
+    contractSystem: ContractSystem,
+    transferId: string,
+    newAmount: number
+  ): boolean {
+    const transfer = contractSystem.getInternalTransfer(transferId);
+
+    // Verify transfer exists and belongs to this company
+    if (!transfer || transfer.ownerId !== this.id) {
+      return false;
+    }
+
+    // Update in market
+    if (!contractSystem.updateInternalTransferAmount(transferId, newAmount)) {
+      return false;
+    }
+
+    // Update in both facilities
+    const fromFacility = this.facilities.find(f => f.id === transfer.fromFacilityId);
+    const toFacility = this.facilities.find(f => f.id === transfer.toFacilityId);
+
+    if (fromFacility) {
+      fromFacility.removeInternalTransfer(transferId);
+      fromFacility.addInternalTransfer(transferId, transfer.resource, newAmount, true);
+    }
+    if (toFacility) {
+      toFacility.removeInternalTransfer(transferId);
+      toFacility.addInternalTransfer(transferId, transfer.resource, newAmount, false);
+    }
+
+    return true;
+  }
+
+  /**
+   * Helper to remove internal transfer from facilities (used by GameEngine during processing)
+   */
+  removeInternalTransferFromFacility(transferId: string, facilityId: string): void {
+    const facility = this.facilities.find(f => f.id === facilityId);
+    if (facility) {
+      facility.removeInternalTransfer(transferId);
     }
   }
 }

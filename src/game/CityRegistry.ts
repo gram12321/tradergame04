@@ -30,7 +30,7 @@ export class CityRegistry {
 }
 
 // Register initial cities
-CityRegistry.registerCity(new City("Copenhagen", "Denmark", 0.9, 1000000));
-CityRegistry.registerCity(new City("Aarhus", "Denmark", 0.85, 250000));
-CityRegistry.registerCity(new City("Prague", "Czech Republic", 0.3, 1300000));
-CityRegistry.registerCity(new City("Cairo", "Egypt", 0.1, 10000000));
+CityRegistry.registerCity(new City("Copenhagen", "Denmark", 0.9, 1000000, "🇩🇰"));
+CityRegistry.registerCity(new City("Aarhus", "Denmark", 0.85, 250000, "🇩🇰"));
+CityRegistry.registerCity(new City("Prague", "Czech Republic", 0.3, 1300000, "🇨🇿"));
+CityRegistry.registerCity(new City("Cairo", "Egypt", 0.1, 10000000, "🇪🇬"));
