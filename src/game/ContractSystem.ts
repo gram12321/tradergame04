@@ -1,3 +1,15 @@
+import { FacilityBase } from './FacilityBase.js';
+import { ProductionFacility } from './ProductionFacility.js';
+import { StorageFacility } from './StorageFacility.js';
+import { RetailFacility } from './RetailFacility.js';
+
+// Minimal interface to avoid circular dependency with Company.ts
+export interface CompanyLike {
+  id: string;
+  name: string;
+  facilities: FacilityBase[];
+}
+
 // Sell offers that can be accepted to form contracts
 export interface SellOffer {
   id: string;
@@ -188,6 +200,59 @@ export class ContractSystem {
     return true;
   }
 
+  /**
+   * Orchestrate creating a sell offer (system + facility update)
+   */
+  executeCreateSellOffer(
+    seller: CompanyLike,
+    facility: FacilityBase,
+    resource: string,
+    amountAvailable: number,
+    pricePerUnit: number
+  ): SellOffer | null {
+    // Basic validation
+    if (amountAvailable <= 0 || pricePerUnit <= 0 || facility.ownerId !== seller.id) {
+      return null;
+    }
+
+    // Add sell offer to market
+    return this.addSellOffer(
+      seller.id,
+      seller.name,
+      facility.id,
+      resource,
+      amountAvailable,
+      pricePerUnit
+    );
+  }
+
+  /**
+   * Orchestrate canceling a sell offer (system update)
+   */
+  executeCancelSellOffer(seller: CompanyLike, offerId: string): boolean {
+    const offer = this.getSellOffer(offerId);
+    if (!offer || offer.sellerId !== seller.id) {
+      return false;
+    }
+    return this.removeSellOffer(offerId);
+  }
+
+  /**
+   * Orchestrate updating a sell offer (system update)
+   */
+  executeUpdateSellOffer(
+    seller: CompanyLike,
+    offerId: string,
+    newPrice?: number,
+    newAmount?: number
+  ): boolean {
+    const offer = this.getSellOffer(offerId);
+    if (!offer || offer.sellerId !== seller.id) {
+      return false;
+    }
+    return this.updateSellOffer(offerId, newPrice, newAmount);
+  }
+
   // ========================================
   // CONTRACT METHODS
   // ========================================
@@ -226,10 +291,10 @@ export class ContractSystem {
     };
 
     this.contracts.set(contract.id, contract);
-    
+
     // Reduce in-stock amount
     offer.amountInStock -= amountPerTick;
-    
+
     return contract;
   }
 
@@ -314,13 +379,13 @@ export class ContractSystem {
     }
 
     this.contracts.delete(contractId);
-    
+
     // Restore the in-stock amount to the sell offer
     const offer = this.sellOffers.get(contract.sellOfferId);
     if (offer) {
       offer.amountInStock += contract.amountPerTick;
     }
-    
+
     return contract;
   }
 
@@ -332,6 +397,151 @@ export class ContractSystem {
     if (contract) {
       contract.lastFailedTick = currentTick;
     }
+  }
+
+  /**
+   * Orchestrate accepting a sell offer (system + facility updates for both parties)
+   */
+  executeAcceptSellOffer(
+    buyer: CompanyLike,
+    seller: CompanyLike,
+    offerId: string,
+    buyingFacility: FacilityBase,
+    amountPerTick: number
+  ): Contract | null {
+    const offer = this.getSellOffer(offerId);
+
+    // Verify offer and ownership
+    if (!offer || offer.sellerId === buyer.id || buyingFacility.ownerId !== buyer.id) {
+      return null;
+    }
+
+    // Verify amount is available
+    if (offer.amountAvailable < amountPerTick) {
+      return null;
+    }
+
+    // Create contract in system
+    const contract = this.createContract(
+      offer,
+      buyer.id,
+      buyer.name,
+      buyingFacility.id,
+      amountPerTick
+    );
+
+    if (!contract) {
+      return null;
+    }
+
+    // Find seller's facility
+    const sellerFacility = seller.facilities.find(f => f.id === offer.sellerFacilityId);
+    if (!sellerFacility) {
+      // Rollback contract creation if seller facility not found
+      this.contracts.delete(contract.id);
+      offer.amountInStock += amountPerTick;
+      return null;
+    }
+
+    // Update facilities for tracking
+    sellerFacility.addContract(contract.id, contract.resource, contract.amountPerTick, contract.pricePerUnit, true);
+    buyingFacility.addContract(contract.id, contract.resource, contract.amountPerTick, contract.pricePerUnit, false);
+
+    return contract;
+  }
+
+  /**
+   * Orchestrate canceling a contract (system + facility updates for both parties)
+   */
+  executeCancelContract(
+    contractId: string,
+    actingCompany: CompanyLike,
+    otherCompany: CompanyLike | null
+  ): boolean {
+    const contract = this.getContract(contractId);
+    if (!contract) return false;
+
+    // Verify acting company is part of the contract
+    if (contract.buyerId !== actingCompany.id && contract.sellerId !== actingCompany.id) {
+      return false;
+    }
+
+    // Find facilities to update
+    const actingIsBuyer = contract.buyerId === actingCompany.id;
+
+    // Update acting company's facility
+    const actingFacilityId = actingIsBuyer ? contract.buyerFacilityId : contract.sellerFacilityId;
+    const actingFacility = actingCompany.facilities.find(f => f.id === actingFacilityId);
+    if (actingFacility) {
+      actingFacility.removeContract(contractId);
+    }
+
+    // Update other company's facility if provided
+    if (otherCompany) {
+      const otherFacilityId = actingIsBuyer ? contract.sellerFacilityId : contract.buyerFacilityId;
+      const otherFacility = otherCompany.facilities.find(f => f.id === otherFacilityId);
+      if (otherFacility) {
+        otherFacility.removeContract(contractId);
+      }
+    }
+
+    // Cancel in system (handles stock restoration)
+    return this.cancelContract(contractId) !== null;
+  }
+
+  /**
+   * Orchestrate updating contract amount (system + facility updates)
+   */
+  executeUpdateContractAmount(
+    contractId: string,
+    buyer: CompanyLike,
+    newAmount: number
+  ): boolean {
+    const contract = this.getContract(contractId);
+    if (!contract || contract.buyerId !== buyer.id) {
+      return false;
+    }
+
+    // Update in system
+    const result = this.updateContractAmount(contractId, newAmount);
+    if (!result) return false;
+
+    // Update buyer's facility
+    const buyerFacility = buyer.facilities.find(f => f.id === contract.buyerFacilityId);
+    if (buyerFacility) {
+      buyerFacility.removeContract(contractId);
+      buyerFacility.addContract(contractId, contract.resource, newAmount, contract.pricePerUnit, false);
+    }
+
+    return true;
+  }
+
+  /**
+   * Orchestrate updating contract price (system + facility updates)
+   */
+  executeUpdateContractPrice(
+    contractId: string,
+    seller: CompanyLike,
+    newPrice: number
+  ): boolean {
+    const contract = this.getContract(contractId);
+    if (!contract || contract.sellerId !== seller.id) {
+      return false;
+    }
+
+    // Update in system
+    if (!this.updateContractPrice(contractId, newPrice)) {
+      return false;
+    }
+
+    // Update seller's facility
+    const sellerFacility = seller.facilities.find(f => f.id === contract.sellerFacilityId);
+    if (sellerFacility) {
+      sellerFacility.removeContract(contractId);
+      sellerFacility.addContract(contractId, contract.resource, contract.amountPerTick, newPrice, true);
+    }
+
+    return true;
   }
 
   /**
@@ -440,6 +650,98 @@ export class ContractSystem {
   }
 
   /**
+   * Orchestrate creating an internal transfer (system + facility updates)
+   */
+  executeCreateInternalTransfer(
+    owner: CompanyLike,
+    fromFacility: FacilityBase,
+    toFacility: FacilityBase,
+    resource: string,
+    amountPerTick: number
+  ): InternalTransfer | null {
+    // Verify ownership and facility types
+    if (fromFacility.ownerId !== owner.id || toFacility.ownerId !== owner.id) return null;
+    if (fromFacility.id === toFacility.id) return null;
+
+    // Check warehouse requirement
+    const fromIsWarehouse = fromFacility.type === 'warehouse';
+    const toIsWarehouse = toFacility.type === 'warehouse';
+    if (!fromIsWarehouse && !toIsWarehouse) return null;
+
+    // Check inventory capability
+    if (!(fromFacility instanceof ProductionFacility || fromFacility instanceof StorageFacility) ||
+      !(toFacility instanceof ProductionFacility || toFacility instanceof StorageFacility)) {
+      return null;
+    }
+
+    // Create in system
+    const transfer = this.createInternalTransfer(
+      owner.id,
+      owner.name,
+      fromFacility.id,
+      fromFacility.name,
+      toFacility.id,
+      toFacility.name,
+      resource,
+      amountPerTick
+    );
+
+    // Update facilities
+    fromFacility.addInternalTransfer(transfer.id, resource, amountPerTick, true);
+    toFacility.addInternalTransfer(transfer.id, resource, amountPerTick, false);
+
+    return transfer;
+  }
+
+  /**
+   * Orchestrate canceling an internal transfer (system + facility updates)
+   */
+  executeCancelInternalTransfer(transferId: string, owner: CompanyLike): boolean {
+    const transfer = this.getInternalTransfer(transferId);
+    if (!transfer || transfer.ownerId !== owner.id) return false;
+
+    // Remove from facilities
+    const fromFacility = owner.facilities.find(f => f.id === transfer.fromFacilityId);
+    const toFacility = owner.facilities.find(f => f.id === transfer.toFacilityId);
+
+    if (fromFacility) fromFacility.removeInternalTransfer(transferId);
+    if (toFacility) toFacility.removeInternalTransfer(transferId);
+
+    // Remove from system
+    return this.cancelInternalTransfer(transferId) !== null;
+  }
+
+  /**
+   * Orchestrate updating an internal transfer amount (system + facility updates)
+   */
+  executeUpdateInternalTransferAmount(
+    transferId: string,
+    owner: CompanyLike,
+    newAmount: number
+  ): boolean {
+    const transfer = this.getInternalTransfer(transferId);
+    if (!transfer || transfer.ownerId !== owner.id) return false;
+
+    // Update in system
+    if (!this.updateInternalTransferAmount(transferId, newAmount)) return false;
+
+    // Update facilities
+    const fromFacility = owner.facilities.find(f => f.id === transfer.fromFacilityId);
+    const toFacility = owner.facilities.find(f => f.id === transfer.toFacilityId);
+
+    if (fromFacility) {
+      fromFacility.removeInternalTransfer(transferId);
+      fromFacility.addInternalTransfer(transferId, transfer.resource, newAmount, true);
+    }
+    if (toFacility) {
+      toFacility.removeInternalTransfer(transferId);
+      toFacility.addInternalTransfer(transferId, transfer.resource, newAmount, false);
+    }
+
+    return true;
+  }
+
+  /**
    * Mark an internal transfer as successful (clear failure status)
    */
   markInternalTransferSuccess(transferId: string): void {
@@ -447,6 +749,36 @@ export class ContractSystem {
     if (transfer) {
       transfer.lastFailedTick = null;
     }
+  }
+
+  /**
+   * Orchestrate an instant resource transfer between two facilities
+   * (Standard instant transfer within the same company)
+   */
+  executeInstantTransfer(
+    owner: CompanyLike,
+    fromFacility: FacilityBase,
+    toFacility: FacilityBase,
+    resource: string,
+    amount: number
+  ): boolean {
+    // Verify ownership
+    if (fromFacility.ownerId !== owner.id || toFacility.ownerId !== owner.id) {
+      return false;
+    }
+
+    // Check if source has enough resources
+    if (fromFacility.getResource(resource) < amount) {
+      return false;
+    }
+
+    // Perform transfer
+    if (fromFacility.removeResource(resource, amount)) {
+      toFacility.addResource(resource, amount);
+      return true;
+    }
+
+    return false;
   }
 
   // ========================================
@@ -459,7 +791,7 @@ export class ContractSystem {
   getSellOfferDisplayLines(): string[] {
     const lines: string[] = [];
     const availableOffers = this.getAvailableSellOffers();
-    
+
     if (availableOffers.length === 0) {
       lines.push('No sell offers available.');
     } else {
@@ -484,7 +816,7 @@ export class ContractSystem {
           });
       });
     }
-    
+
     return lines;
   }
 
@@ -493,7 +825,7 @@ export class ContractSystem {
    */
   getContractDisplayLines(): string[] {
     const lines: string[] = [];
-    
+
     if (this.contracts.size === 0) {
       lines.push('No active contracts.');
     } else {
@@ -506,7 +838,7 @@ export class ContractSystem {
         lines.push(`    Seller: ${contract.sellerName} | Buyer: ${contract.buyerName}`);
       });
     }
-    
+
     return lines;
   }
 
@@ -515,7 +847,7 @@ export class ContractSystem {
    */
   getInternalTransferDisplayLines(): string[] {
     const lines: string[] = [];
-    
+
     if (this.internalTransfers.size === 0) {
       lines.push('No internal transfers.');
     } else {
@@ -528,7 +860,7 @@ export class ContractSystem {
         lines.push(`    From: ${transfer.fromFacilityName} → To: ${transfer.toFacilityName} (${transfer.ownerName})`);
       });
     }
-    
+
     return lines;
   }
 
