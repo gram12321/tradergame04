@@ -4,6 +4,7 @@ import { GameStateRepository } from '../src/database/GameStateRepository.js';
 import { GameEngine } from '../src/game/GameEngine.js';
 import { CityRegistry } from '../src/game/CityRegistry.js';
 import { Company } from '../src/game/Company.js';
+import { FacilityManager } from '../src/game/FacilityManager.js';
 
 async function runDatabaseTests() {
       console.log('🔍 PHASE 1: TESTING SUPABASE CONNECTION...\n');
@@ -51,8 +52,8 @@ async function runDatabaseTests() {
             const alice = game.addCompany(aliceId, 'Autosave Alice');
             const copenhagen = CityRegistry.getCity('Copenhagen', 'Denmark')!;
 
-            alice.createFacility('office', copenhagen);
-            alice.createFacility('farm', copenhagen);
+            FacilityManager.createFacility(alice, 'office', copenhagen);
+            FacilityManager.createFacility(alice, 'farm', copenhagen);
 
             console.log(`Initial Alice balance: $${alice.balance.toFixed(2)}`);
 
@@ -81,8 +82,8 @@ async function runDatabaseTests() {
             const bobId = crypto.randomUUID();
             createdCompanyIds.push(bobId);
             const bob = pGame.addCompany(bobId, 'Persist Bob');
-            bob.createFacility('office', copenhagen);
-            const bobFarm = bob.createFacility('farm', copenhagen);
+            FacilityManager.createFacility(bob, 'office', copenhagen);
+            const bobFarm = FacilityManager.createFacility(bob, 'farm', copenhagen);
 
             if (bobFarm && bobFarm.inventory) {
                   bobFarm.inventory.set('grain', 500);
@@ -121,11 +122,11 @@ async function runDatabaseTests() {
             const buyerComp = mGame.addCompany(buyerId, 'Market Buyer');
 
             // Add offices first (required to build other facilities)
-            sellerComp.createFacility('office', copenhagen);
-            buyerComp.createFacility('office', copenhagen);
+            FacilityManager.createFacility(sellerComp, 'office', copenhagen);
+            FacilityManager.createFacility(buyerComp, 'office', copenhagen);
 
-            const sFac = sellerComp.createFacility('farm', copenhagen);
-            const bFac = buyerComp.createFacility('warehouse', copenhagen);
+            const sFac = FacilityManager.createFacility(sellerComp, 'farm', copenhagen);
+            const bFac = FacilityManager.createFacility(buyerComp, 'warehouse', copenhagen);
 
             const market = mGame.getContractSystem();
             if (sFac && bFac) {
@@ -136,7 +137,7 @@ async function runDatabaseTests() {
                         market.executeAcceptSellOffer(buyerComp, sellerComp, offer.id, bFac, 5);
                   }
                   // Create internal transfer
-                  const sWarehouse = sellerComp.createFacility('warehouse', copenhagen);
+                  const sWarehouse = FacilityManager.createFacility(sellerComp, 'warehouse', copenhagen);
                   if (sWarehouse) {
                         market.executeCreateInternalTransfer(sellerComp, sFac, sWarehouse, 'grain', 3);
                   }

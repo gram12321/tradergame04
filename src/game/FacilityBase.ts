@@ -237,12 +237,79 @@ export abstract class FacilityBase {
     return exports;
   }
 
+  /**
+   * Build a net flow map from multiple per-resource flow maps
+   */
+  protected buildNetFlow(flows: Array<Map<string, number>>): Map<string, number> {
+    const netFlow = new Map<string, number>();
+    const allResources = new Set<string>();
+
+    if (this.inventory) {
+      this.inventory.forEach((_, resource) => allResources.add(resource));
+    }
+
+    flows.forEach(flow => {
+      flow.forEach((_, resource) => allResources.add(resource));
+    });
+
+    allResources.forEach(resource => {
+      let total = 0;
+      flows.forEach(flow => {
+        total += flow.get(resource) || 0;
+      });
+      if (total !== 0) {
+        netFlow.set(resource, total);
+      }
+    });
+
+    return netFlow;
+  }
+
+  /**
+   * Negate a flow map (useful for exports/consumption)
+   */
+  protected negateFlow(flow: Map<string, number>): Map<string, number> {
+    const negated = new Map<string, number>();
+    flow.forEach((amount, resource) => {
+      negated.set(resource, -amount);
+    });
+    return negated;
+  }
+
+  /**
+   * Shared helper for depletion calculation
+   */
+  protected getTicksUntilDepletionFromNetFlow(resource: string, netFlow: Map<string, number>): number | null {
+    const net = netFlow.get(resource) || 0;
+    if (net >= 0) return null;
+
+    const currentAmount = this.getResource(resource);
+    if (currentAmount <= 0) return 0;
+
+    return Math.floor(currentAmount / Math.abs(net));
+  }
+
 
 
   // ========================================
   // INVENTORY METHODS (for Production, Storage, Retail)
   // Office does not use these
   // ========================================
+
+  /**
+   * Initialize inventory storage for facilities that use it
+   */
+  protected initInventory(): void {
+    this.inventory = new Map();
+    this.cachedMaxInventoryCapacity = 0;
+  }
+
+  /**
+   * Initialize workers after subclass state is ready
+   */
+  protected initWorkers(): void {
+    this.workers = this.calculateRequiredWorkers();
+  }
 
   /**
    * Get the cached maximum inventory capacity

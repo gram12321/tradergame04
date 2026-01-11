@@ -1,6 +1,4 @@
 import { FacilityBase } from './FacilityBase.js';
-import { FacilityRegistry } from './FacilityRegistry.js';
-import { ResourceRegistry } from './ResourceRegistry.js';
 import { City } from './City.js';
 
 /**
@@ -14,13 +12,12 @@ export class RetailFacility extends FacilityBase {
 
   constructor(type: string, ownerId: string, name: string, city: City) {
     super(type, ownerId, name, city);
-    this.inventory = new Map();
-    this.cachedMaxInventoryCapacity = 0;
+    this.initInventory();
     this.revenue = 0;
     this.prices = new Map();
     this.salesThisTick = new Map();
     // Set workers after all properties are initialized
-    this.workers = this.calculateRequiredWorkers();
+    this.initWorkers();
   }
 
   /**

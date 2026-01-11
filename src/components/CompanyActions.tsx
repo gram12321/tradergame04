@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react'
 import { Company } from '../game/Company'
 import { FacilityRegistry } from '../game/FacilityRegistry'
@@ -8,6 +9,9 @@ import { AdminFunctions } from '../game/adminFunctions'
 import { ProductionFacility } from '../game/ProductionFacility'
 import { StorageFacility } from '../game/StorageFacility'
 import { RetailFacility } from '../game/RetailFacility'
+import { FacilityManager } from '../game/FacilityManager'
+import { Office } from '../game/Office'
+import { FacilityBase } from '../game/FacilityBase'
 
 interface CompanyActionsProps {
   company: Company
@@ -124,17 +128,17 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
         return
       }
 
-      if (facilityType.category !== 'office' && !company.hasOfficeInCountry(country)) {
+      if (facilityType.category !== 'office' && !Office.hasOfficeInCountry(company.facilities, country)) {
         onMessage('You must build an office in this country before creating other facilities.', 'error')
         return
       }
 
-      if (facilityType.category === 'office' && company.hasOfficeInCountry(country)) {
+      if (facilityType.category === 'office' && Office.hasOfficeInCountry(company.facilities, country)) {
         onMessage('You already have an office in this country.', 'error')
         return
       }
 
-      const facility = company.createFacility(createType, city)
+      const facility = FacilityManager.createFacility(company, createType, city)
       if (!facility) {
         onMessage('Failed to create facility (check balance or requirements)', 'error')
         return
@@ -226,7 +230,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
       const oldSize = facility.size
       const cost = facility.getUpgradeCost()
 
-      const success = company.upgradeFacility(facility)
+      const success = FacilityManager.upgradeFacility(company, facility)
       if (success) {
         await company.save()
         onMessage(`Upgraded ${facility.name}! Size ${oldSize}→${facility.size}, Cost: $${cost.toFixed(2)}`, 'success')
@@ -255,7 +259,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
       const oldSize = facility.size
       const refund = facility.getDegradeCost()
 
-      const success = company.degradeFacility(facility)
+      const success = FacilityManager.degradeFacility(company, facility)
       if (success) {
         await company.save()
         onMessage(`Degraded ${facility.name}! Size ${oldSize}→${facility.size}, Refund: $${refund.toFixed(2)}`, 'info')
@@ -277,7 +281,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
       }
 
       const oldWorkers = facility.workers
-      const success = company.setFacilityWorkers(facility, workersCount)
+      const success = FacilityManager.setFacilityWorkers(company, facility, workersCount)
 
       if (success) {
         await company.save()
@@ -402,19 +406,17 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
         return
       }
 
-      if (!confirm(`⚠️ Are you sure you want to destroy ${facility.name}? This action is permanent!`)) {
-        return
-      }
+      if (confirm(`⚠️ Are you sure you want to destroy ${facility.name}? This action is permanent!`)) {
+        const facilityName = facility.name
+        const success = FacilityManager.destroyFacility(company, facility)
 
-      const facilityName = facility.name
-      const success = company.destroyFacility(facility)
-
-      if (success) {
-        await company.save()
-        onMessage(`Destroyed ${facilityName}`, 'info')
-        onAction()
-      } else {
-        onMessage('Failed to destroy facility', 'error')
+        if (success) {
+          await company.save()
+          onMessage(`Destroyed ${facilityName}`, 'info')
+          onAction()
+        } else {
+          onMessage('Failed to destroy facility', 'error')
+        }
       }
     } catch (err) {
       onMessage(`Error: ${(err as Error).message}`, 'error')

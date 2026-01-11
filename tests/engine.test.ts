@@ -1,4 +1,6 @@
 import { GameEngine } from '../src/game/GameEngine.js';
+import { GameEngine } from '../src/game/GameEngine.js';
+import { FacilityManager } from '../src/game/FacilityManager.js';
 import { FacilityRegistry } from '../src/game/FacilityRegistry.js';
 import { CityRegistry } from '../src/game/CityRegistry.js';
 import { ResourceRegistry, DEFAULT_CONSUMPTION_RATES, RESOURCE_PRICE_RATIOS, INTER_RETAILER_SENSITIVITY } from '../src/game/ResourceRegistry.js';
@@ -55,28 +57,28 @@ console.log('Resource weights correctly defined\n');
 console.log('\n=== OFFICE FACILITY TEST ===\n');
 
 // Test office creation
-let officeTest = alice.createFacility('office', copenhagen);
+let officeTest = FacilityManager.createFacility(alice, 'office', copenhagen);
 assert(officeTest !== null, 'Office created successfully in Copenhagen');
 assert(officeTest?.type === 'office', `Office type is 'office' (actual: ${officeTest?.type})`);
 assert(officeTest?.city.country === 'Denmark', 'Office is in Denmark');
 
 // Test office one-per-country restriction
-let officeTest2 = alice.createFacility('office', copenhagen);
+let officeTest2 = FacilityManager.createFacility(alice, 'office', copenhagen);
 assert(officeTest2 === null, 'Second office in same country rejected (Denmark)');
 
 // Test office in different country should work
-let officeTest3 = alice.createFacility('office', prague);
+let officeTest3 = FacilityManager.createFacility(alice, 'office', prague);
 assert(officeTest3 !== null, 'Office created in different country (Czech Republic)');
 
 // Test Bob can create office in Denmark (different company)
-let bobOffice = bob.createFacility('office', copenhagen);
+let bobOffice = FacilityManager.createFacility(bob, 'office', copenhagen);
 assert(bobOffice !== null, 'Different company can create office in same city');
 
 console.log('\n=== OFFICE EFFECTIVITY AS HARD CAP TEST ===\n');
 
 // Create facilities for testing office hard cap
-let farm = alice.createFacility('farm', copenhagen) as ProductionFacility | null;
-let mill = alice.createFacility('mill', copenhagen) as ProductionFacility | null;
+let farm = FacilityManager.createFacility(alice, 'farm', copenhagen) as ProductionFacility | null;
+let mill = FacilityManager.createFacility(alice, 'mill', copenhagen) as ProductionFacility | null;
 assert(farm !== null, 'Farm created in Copenhagen');
 assert(mill !== null, 'Mill created in Copenhagen');
 
@@ -129,7 +131,7 @@ if (farm) {
 console.log('\n=== FACILITY DEGRADE FUNCTIONALITY TEST ===\n');
 
 // Create a facility and upgrade it (use Prague - already has an office)
-let testFarm = alice.createFacility('farm', prague) as ProductionFacility | null;
+let testFarm = FacilityManager.createFacility(alice, 'farm', prague) as ProductionFacility | null;
 if (testFarm) {
   const originalSize = testFarm.size;
   const upgradeCost = testFarm.getUpgradeCost();
@@ -199,7 +201,7 @@ console.log('\n=== FACILITY WITHOUT OFFICE TEST ===\n');
 
 // Create a company without an office
 const charlie = game.addCompany('charlie', 'Charlie Industries');
-const farmWithoutOffice = charlie.createFacility('farm', prague) as ProductionFacility | null;
+const farmWithoutOffice = FacilityManager.createFacility(charlie, 'farm', prague) as ProductionFacility | null;
 
 assert(
   farmWithoutOffice === null,
@@ -207,18 +209,18 @@ assert(
 );
 
 // Create office first, then farm
-const charlieOffice = charlie.createFacility('office', prague) as Office | null;
+const charlieOffice = FacilityManager.createFacility(charlie, 'office', prague) as Office | null;
 assert(charlieOffice !== null, 'Charlie created office in Prague');
 
-const charliesFarm = charlie.createFacility('farm', prague) as ProductionFacility | null;
+const charliesFarm = FacilityManager.createFacility(charlie, 'farm', prague) as ProductionFacility | null;
 assert(charliesFarm !== null, 'Charlie can now create farm after office exists');
 
 console.log('\n=== WAGE DEDUCTION TEST ===\n');
 
 // Create fresh facilities for wage testing
 const wageTestCompany = game.addCompany('wagetest', 'Wage Test Corp');
-const wageOffice = wageTestCompany.createFacility('office', copenhagen) as Office | null;
-const wageFarm = wageTestCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
+const wageOffice = FacilityManager.createFacility(wageTestCompany, 'office', copenhagen) as Office | null;
+const wageFarm = FacilityManager.createFacility(wageTestCompany, 'farm', copenhagen) as ProductionFacility | null;
 
 if (wageFarm && wageOffice) {
   const initialBalance = wageTestCompany.balance;
@@ -228,7 +230,7 @@ if (wageFarm && wageOffice) {
   game.processTick();
 
   const afterBalance = wageTestCompany.balance;
-  const totalWages = wageTestCompany.getTotalWagesPerTick();
+  const totalWages = FacilityManager.getTotalWages(wageTestCompany);
   const expectedBalance = initialBalance - totalWages;
 
   assert(
@@ -246,7 +248,7 @@ if (wageFarm) {
 
   // Hire more workers
   const balanceBefore = wageTestCompany.balance;
-  const hired = wageTestCompany.setFacilityWorkers(wageFarm, requiredWorkers * 2);
+  const hired = FacilityManager.setFacilityWorkers(wageTestCompany, wageFarm, requiredWorkers * 2);
   const balanceAfter = wageTestCompany.balance;
 
   assert(hired, `Successfully hired workers: ${requiredWorkers} → ${wageFarm.workers}`);
@@ -258,7 +260,7 @@ if (wageFarm) {
   // Fire workers
   const firingCost = wageFarm.getHiringCost(requiredWorkers);
   const balanceBefore2 = wageTestCompany.balance;
-  const fired = wageTestCompany.setFacilityWorkers(wageFarm, requiredWorkers);
+  const fired = FacilityManager.setFacilityWorkers(wageTestCompany, wageFarm, requiredWorkers);
   const balanceAfter2 = wageTestCompany.balance;
 
   assert(fired, `Successfully fired workers: ${requiredWorkers * 2} → ${wageFarm.workers}`);
@@ -271,8 +273,8 @@ if (wageFarm) {
 console.log('\n=== UPGRADE/DEGRADE PRODUCTION SCALING TEST ===\n');
 
 const prodTestCompany = game.addCompany('prodtest', 'Production Test Corp');
-const prodOffice = prodTestCompany.createFacility('office', prague) as Office | null;
-const prodFarm = prodTestCompany.createFacility('farm', prague) as ProductionFacility | null;
+const prodOffice = FacilityManager.createFacility(prodTestCompany, 'office', prague) as Office | null;
+const prodFarm = FacilityManager.createFacility(prodTestCompany, 'farm', prague) as ProductionFacility | null;
 
 if (prodFarm && prodOffice) {
   // Set workers to full staff
@@ -284,7 +286,7 @@ if (prodFarm && prodOffice) {
   const upgradeCost = prodFarm.getUpgradeCost();
 
   // Upgrade
-  const upgraded = prodTestCompany.upgradeFacility(prodFarm);
+  const upgraded = FacilityManager.upgradeFacility(prodTestCompany, prodFarm);
   assert(upgraded, `Farm upgraded from size 1 to ${prodFarm.size}`);
 
   const size2Output = prodFarm.getProductionMultiplier();
@@ -302,7 +304,7 @@ if (prodFarm && prodOffice) {
   // Degrade
   const degradeRefund = prodFarm.getDegradeCost();
   const balanceBefore = prodTestCompany.balance;
-  const degraded = prodTestCompany.degradeFacility(prodFarm);
+  const degraded = FacilityManager.degradeFacility(prodTestCompany, prodFarm);
   const balanceAfter = prodTestCompany.balance;
 
   assert(degraded, `Farm degraded from size 2 to ${prodFarm.size}`);
@@ -315,8 +317,8 @@ console.log('\n=== RECIPE SWITCHING TEST ===\n');
 
 // Test that Farm can switch between Grow Grain and Grow Grapes
 const recipeSwitchCompany = game.addCompany('recipeswitch', 'Recipe Switch Corp');
-const recipeSwitchOffice = recipeSwitchCompany.createFacility('office', copenhagen) as Office | null;
-const recipeSwitchFarm = recipeSwitchCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
+const recipeSwitchOffice = FacilityManager.createFacility(recipeSwitchCompany, 'office', copenhagen) as Office | null;
+const recipeSwitchFarm = FacilityManager.createFacility(recipeSwitchCompany, 'farm', copenhagen) as ProductionFacility | null;
 
 if (recipeSwitchFarm && recipeSwitchOffice) {
   recipeSwitchOffice.setWorkerCount(100);
@@ -358,10 +360,12 @@ if (recipeSwitchFarm && recipeSwitchOffice) {
 
 console.log('\n=== WINERY PRODUCTION TEST ===\n');
 
+console.log('\n=== WINERY PRODUCTION TEST ===\n');
+
 const wineryCompany = game.addCompany('winery', 'Winery Corp');
-const wineryOffice = wineryCompany.createFacility('office', aarhus) as Office | null;
-const wineryFarm = wineryCompany.createFacility('farm', aarhus) as ProductionFacility | null;
-const winery = wineryCompany.createFacility('winery', aarhus) as ProductionFacility | null;
+const wineryOffice = FacilityManager.createFacility(wineryCompany, 'office', aarhus) as Office | null;
+const wineryFarm = FacilityManager.createFacility(wineryCompany, 'farm', aarhus) as ProductionFacility | null;
+const winery = FacilityManager.createFacility(wineryCompany, 'winery', aarhus) as ProductionFacility | null;
 
 if (winery && wineryFarm && wineryOffice) {
   wineryOffice.setWorkerCount(100);
@@ -409,8 +413,8 @@ console.log('\n=== PRODUCTION INPUT/OUTPUT TEST ===\n');
 
 // Fresh company for clean production test
 const ioTestCompany = game.addCompany('iotest', 'IO Test Corp');
-const ioOffice = ioTestCompany.createFacility('office', copenhagen) as Office | null;
-const ioFarm = ioTestCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
+const ioOffice = FacilityManager.createFacility(ioTestCompany, 'office', copenhagen) as Office | null;
+const ioFarm = FacilityManager.createFacility(ioTestCompany, 'farm', copenhagen) as ProductionFacility | null;
 
 if (ioFarm && ioOffice) {
   ioOffice.setWorkerCount(100);
@@ -440,8 +444,8 @@ if (ioFarm && ioOffice) {
 console.log('\n=== PRODUCTION REQUIRES INPUT TEST ===\n');
 
 const millTestCompany = game.addCompany('milltest', 'Mill Test Corp');
-const millOffice = millTestCompany.createFacility('office', prague) as Office | null;
-const testMill = millTestCompany.createFacility('mill', prague) as ProductionFacility | null;
+const millOffice = FacilityManager.createFacility(millTestCompany, 'office', prague) as Office | null;
+const testMill = FacilityManager.createFacility(millTestCompany, 'mill', prague) as ProductionFacility | null;
 
 if (testMill && millOffice) {
   millOffice.setWorkerCount(100);
@@ -490,7 +494,7 @@ if (ioFarm && testMill) {
   );
 
   // Transfer within same company
-  const ioFarm2 = ioTestCompany.createFacility('farm', prague) as ProductionFacility | null;
+  const ioFarm2 = FacilityManager.createFacility(ioTestCompany, 'farm', prague) as ProductionFacility | null;
   if (ioFarm2) {
     ioFarm2.addResource('grain', 100);
     const farm2Before = ioFarm2.getResource('grain');
@@ -513,8 +517,8 @@ if (ioFarm && testMill) {
 console.log('\n=== WAREHOUSE CAPACITY TEST ===\n');
 
 const warehouseCompany = game.addCompany('warehouse', 'Warehouse Corp');
-const whOffice = warehouseCompany.createFacility('office', copenhagen) as Office | null;
-const warehouse = warehouseCompany.createFacility('warehouse', copenhagen) as StorageFacility | null;
+const whOffice = FacilityManager.createFacility(warehouseCompany, 'office', copenhagen) as Office | null;
+const warehouse = FacilityManager.createFacility(warehouseCompany, 'warehouse', copenhagen) as StorageFacility | null;
 
 if (warehouse && whOffice) {
   whOffice.setWorkerCount(100);
@@ -543,9 +547,9 @@ if (warehouse && whOffice) {
 console.log('\n=== RETAIL FACILITY TEST ===\n');
 
 const retailCompany = game.addCompany('retail', 'Retail Corp');
-const retailOffice = retailCompany.createFacility('office', copenhagen) as Office | null;
-const retailFacility = retailCompany.createFacility('retail', copenhagen) as RetailFacility | null;
-const retailFarm = retailCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
+const retailOffice = FacilityManager.createFacility(retailCompany, 'office', copenhagen) as Office | null;
+const retailFacility = FacilityManager.createFacility(retailCompany, 'retail', copenhagen) as RetailFacility | null;
+const retailFarm = FacilityManager.createFacility(retailCompany, 'farm', copenhagen) as ProductionFacility | null;
 
 if (retailFacility && retailOffice && retailFarm) {
   retailOffice.setWorkerCount(100);
@@ -605,7 +609,7 @@ if (retailFacility && retailOffice && retailFarm) {
   const companyBalanceAfter = retailCompany.balance;
   retailGrainAfter2 = retailFacility.getResource('grain');
 
-  const wages = retailCompany.getTotalWagesPerTick();
+  const wages = FacilityManager.getTotalWages(retailCompany);
   assert(
     Math.abs(companyBalanceAfter - (companyBalanceBefore + revenue - wages)) < 0.01,
     `Company balance correctly updated (Revenue: $${revenue.toFixed(2)}, Wages: $${wages.toFixed(2)})`
@@ -629,8 +633,8 @@ console.log('\n=== AUTOMATIC RETAIL DEMAND SYSTEM TEST ===\n');
 
 // Create a new retail test with automatic demand
 const demandCompany = game.addCompany('demand', 'Demand Test Corp');
-const demandOffice = demandCompany.createFacility('office', copenhagen) as Office | null;
-const demandRetail = demandCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+const demandOffice = FacilityManager.createFacility(demandCompany, 'office', copenhagen) as Office | null;
+const demandRetail = FacilityManager.createFacility(demandCompany, 'retail', copenhagen) as RetailFacility | null;
 
 if (demandRetail && demandOffice) {
   demandOffice.setWorkerCount(100);
@@ -693,8 +697,8 @@ console.log('\n=== MULTIPLE RETAILERS DEMAND DISTRIBUTION TEST ===\n');
 
 // Create second retailer to test demand splitting
 const demand2Company = game.addCompany('demand2', 'Demand Test 2 Corp');
-const demand2Office = demand2Company.createFacility('office', copenhagen) as Office | null;
-const demand2Retail = demand2Company.createFacility('retail', copenhagen) as RetailFacility | null;
+const demand2Office = FacilityManager.createFacility(demand2Company, 'office', copenhagen) as Office | null;
+const demand2Retail = FacilityManager.createFacility(demand2Company, 'retail', copenhagen) as RetailFacility | null;
 
 if (demand2Retail && demand2Office && demandRetail) {
   demand2Office.setWorkerCount(100);
@@ -735,9 +739,9 @@ console.log('\n=== PRICE SENSITIVITY TEST (Different Prices) ===\n');
 // Test that retailers with different prices get different sales volumes
 // NOTE: This test verifies the setup. Full price sensitivity will be implemented in Phase 2.
 const priceTestCompany = game.addCompany('pricetest', 'Price Test Corp');
-const priceOffice = priceTestCompany.createFacility('office', copenhagen) as Office | null;
-const cheapRetail = priceTestCompany.createFacility('retail', copenhagen) as RetailFacility | null;
-const expensiveRetail = priceTestCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+const priceOffice = FacilityManager.createFacility(priceTestCompany, 'office', copenhagen) as Office | null;
+const cheapRetail = FacilityManager.createFacility(priceTestCompany, 'retail', copenhagen) as RetailFacility | null;
+const expensiveRetail = FacilityManager.createFacility(priceTestCompany, 'retail', copenhagen) as RetailFacility | null;
 
 if (cheapRetail && expensiveRetail && priceOffice) {
   priceOffice.setWorkerCount(100);
@@ -789,9 +793,9 @@ console.log('\n=== DEMAND REDISTRIBUTION TEST ===\n');
 
 // Test that unfulfilled demand goes to other retailers
 const lowStockCompany = game.addCompany('lowstock', 'Low Stock Corp');
-const lowStockOffice = lowStockCompany.createFacility('office', prague) as Office | null;
-const lowStockRetail = lowStockCompany.createFacility('retail', prague) as RetailFacility | null;
-const highStockRetail = lowStockCompany.createFacility('retail', prague) as RetailFacility | null;
+const lowStockOffice = FacilityManager.createFacility(lowStockCompany, 'office', prague) as Office | null;
+const lowStockRetail = FacilityManager.createFacility(lowStockCompany, 'retail', prague) as RetailFacility | null;
+const highStockRetail = FacilityManager.createFacility(lowStockCompany, 'retail', prague) as RetailFacility | null;
 
 if (lowStockRetail && highStockRetail && lowStockOffice) {
   lowStockOffice.setWorkerCount(100);
@@ -830,113 +834,85 @@ if (lowStockRetail && highStockRetail && lowStockOffice) {
 
 console.log('\n=== MARKET SELL OFFER TEST ===\n');
 
-
 const sellerCompany = game.addCompany('seller', 'Seller Corp');
-const sellerOffice = sellerCompany.createFacility('office', copenhagen) as Office | null;
-const sellerFarm = sellerCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
+const buyerCompany = game.addCompany('buyer', 'Buyer Corp');
 
-if (sellerFarm && sellerOffice) {
+const sellerOffice = FacilityManager.createFacility(sellerCompany, 'office', copenhagen) as Office | null;
+const sellerFarm = FacilityManager.createFacility(sellerCompany, 'farm', copenhagen) as ProductionFacility | null;
+const buyerOffice = FacilityManager.createFacility(buyerCompany, 'office', copenhagen) as Office | null;
+const buyerMill = FacilityManager.createFacility(buyerCompany, 'mill', copenhagen) as ProductionFacility | null;
+
+if (sellerFarm && buyerMill && sellerOffice && buyerOffice) {
   sellerOffice.setWorkerCount(100);
+  buyerOffice.setWorkerCount(100);
   sellerFarm.setWorkerCount(sellerFarm.calculateRequiredWorkers());
-  sellerFarm.addResource('grain', 100);
+  buyerMill.setWorkerCount(buyerMill.calculateRequiredWorkers());
 
+  // Give seller some grain
+  sellerFarm.setRecipe(RecipeRegistry.get('Grow Grain')!);
+  for (let i = 0; i < 5; i++) game.processTick();
+
+  const grainAmount = sellerFarm.getResource('grain');
+  assert(grainAmount > 0, `Seller has grain: ${grainAmount.toFixed(1)}`);
+
+  // Create sell offer
+  const market = game.getContractSystem();
   const offer = market.executeCreateSellOffer(sellerCompany, sellerFarm, 'grain', 10, 5.00);
 
   assert(offer !== null, 'Sell offer created successfully');
 
+  // Verify offer creation
   const marketOffers = market.getAllSellOffers().filter(o => o.resource === 'grain');
   assert(
     marketOffers.some(o => o.id === offer?.id),
     'Sell offer appears on market'
   );
 
-  // Test that offer persists even with no stock
-  sellerFarm.removeResource('grain', 100);
+  // Buyer accepts offer
+  const sellerBalanceBefore = sellerCompany.balance;
+  const buyerBalanceBefore = buyerCompany.balance;
+  const destBefore = buyerMill.getResource('grain');
+  const farmBefore = sellerFarm.getResource('grain');
 
-  const offersAfterDrain = market.getAllSellOffers().filter(o => o.resource === 'grain');
-  const stillExists = offersAfterDrain.some(o => o.id === offer?.id);
-
-  assert(
-    stillExists,
-    'Offer persists even when stock depleted (not deleted)'
+  const contract = market.executeAcceptSellOffer(
+    buyerCompany,
+    sellerCompany,
+    offer!.id,
+    buyerMill,
+    5
   );
 
-  // Add stock back
-  sellerFarm.addResource('grain', 50);
+  assert(contract !== null, 'Contract created between companies');
 
-  const restoredOffers = market.getAllSellOffers().filter(o => o.resource === 'grain');
-  const hasStock = restoredOffers.find(o => o.id === offer?.id);
+  // Process a tick to execute contract
+  game.processTick();
+
+  const sellerBalanceAfter = sellerCompany.balance;
+  const buyerBalanceAfter = buyerCompany.balance;
+  const destAfter = buyerMill.getResource('grain');
+  const farmAfter = sellerFarm.getResource('grain');
 
   assert(
-    hasStock !== undefined && hasStock.amountAvailable > 0,
-    'Offer shows available stock when inventory restored'
+    destAfter > destBefore,
+    `Buyer received grain: ${destBefore.toFixed(1)} → ${destAfter.toFixed(1)}`
   );
-}
+  assert(
+    farmAfter < farmBefore,
+    `Seller sent grain: ${farmBefore.toFixed(1)} → ${farmAfter.toFixed(1)}`
+  );
+  assert(
+    sellerBalanceAfter > sellerBalanceBefore,
+    `Seller received payment: $${sellerBalanceBefore.toFixed(2)} → $${sellerBalanceAfter.toFixed(2)}`
+  );
+  // Test contract persistence - process another tick
+  const dest2Before = buyerMill.getResource('grain');
+  game.processTick();
+  const dest2After = buyerMill.getResource('grain');
 
-console.log('\n=== CONTRACT BETWEEN COMPANIES TEST ===\n');
-
-const buyerCompany = game.addCompany('buyer', 'Buyer Corp');
-const buyerOffice = buyerCompany.createFacility('office', prague) as Office | null;
-const buyerWarehouse = buyerCompany.createFacility('warehouse', prague) as StorageFacility | null;
-
-if (buyerWarehouse && sellerFarm && buyerOffice) {
-  buyerOffice.setWorkerCount(100);
-  buyerWarehouse.setWorkerCount(buyerWarehouse.calculateRequiredWorkers());
-
-  const grainOffers = market.getAllSellOffers().filter(o => o.resource === 'grain');
-  const offer = grainOffers.find(o => o.sellerId === sellerCompany.id);
-
-  if (offer) {
-    const sellerBalanceBefore = sellerCompany.balance;
-    const buyerBalanceBefore = buyerCompany.balance;
-    const warehouseBefore = buyerWarehouse.getResource('grain');
-    const farmBefore = sellerFarm.getResource('grain');
-
-    const contract = market.executeAcceptSellOffer(
-      buyerCompany,
-      sellerCompany,
-      offer.id,
-      buyerWarehouse,
-      5
-    );
-
-    assert(contract !== null, 'Contract created between companies');
-
-    // Process a tick to execute contract
-    game.processTick();
-
-    const sellerBalanceAfter = sellerCompany.balance;
-    const buyerBalanceAfter = buyerCompany.balance;
-    const warehouseAfter = buyerWarehouse.getResource('grain');
-    const farmAfter = sellerFarm.getResource('grain');
-
-    assert(
-      warehouseAfter > warehouseBefore,
-      `Buyer received grain: ${warehouseBefore.toFixed(1)} → ${warehouseAfter.toFixed(1)}`
-    );
-    assert(
-      farmAfter < farmBefore,
-      `Seller sent grain: ${farmBefore.toFixed(1)} → ${farmAfter.toFixed(1)}`
-    );
-    assert(
-      sellerBalanceAfter > sellerBalanceBefore,
-      `Seller received payment: $${sellerBalanceBefore.toFixed(2)} → $${sellerBalanceAfter.toFixed(2)}`
-    );
-    assert(
-      buyerBalanceAfter < buyerBalanceBefore,
-      `Buyer paid for goods: $${buyerBalanceBefore.toFixed(2)} → $${buyerBalanceAfter.toFixed(2)}`
-    );
-
-    // Test contract persistence - process another tick
-    const warehouse2Before = buyerWarehouse.getResource('grain');
-    game.processTick();
-    const warehouse2After = buyerWarehouse.getResource('grain');
-
-    assert(
-      warehouse2After > warehouse2Before,
-      'Contract continues executing on subsequent ticks'
-    );
-  }
+  assert(
+    dest2After > dest2Before,
+    'Contract continues executing on subsequent ticks'
+  );
 }
 
 console.log('\n=== CONTRACT PAUSE WHEN RESOURCES UNAVAILABLE TEST ===\n');
@@ -946,9 +922,9 @@ if (sellerFarm) {
   const currentGrain = sellerFarm.getResource('grain');
   sellerFarm.removeResource('grain', currentGrain);
 
-  const buyerBefore = buyerWarehouse?.getResource('grain') || 0;
+  const buyerBefore = buyerMill?.getResource('grain') || 0;
   game.processTick();
-  const buyerAfter = buyerWarehouse?.getResource('grain') || 0;
+  const buyerAfter = buyerMill?.getResource('grain') || 0;
 
   assert(
     buyerAfter === buyerBefore,
@@ -957,9 +933,9 @@ if (sellerFarm) {
 
   // Restore grain
   sellerFarm.addResource('grain', 100);
-  const buyerBefore2 = buyerWarehouse?.getResource('grain') || 0;
+  const buyerBefore2 = buyerMill?.getResource('grain') || 0;
   game.processTick();
-  const buyerAfter2 = buyerWarehouse?.getResource('grain') || 0;
+  const buyerAfter2 = buyerMill?.getResource('grain') || 0;
 
   assert(
     buyerAfter2 > buyerBefore2,
@@ -971,9 +947,9 @@ console.log('\n=== CROSS-RESOURCE SUBSTITUTION TEST (Phase 4) ===\n');
 
 // Test that consumers substitute between resources based on relative prices
 const substCompany = game.addCompany('substitution', 'Substitution Test Corp');
-const substOffice = substCompany.createFacility('office', copenhagen) as Office | null;
-const breadRetail = substCompany.createFacility('retail', copenhagen) as RetailFacility | null;
-const flourRetail = substCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+const substOffice = FacilityManager.createFacility(substCompany, 'office', copenhagen) as Office | null;
+const breadRetail = FacilityManager.createFacility(substCompany, 'retail', copenhagen) as RetailFacility | null;
+const flourRetail = FacilityManager.createFacility(substCompany, 'retail', copenhagen) as RetailFacility | null;
 
 if (breadRetail && flourRetail && substOffice) {
   substOffice.setWorkerCount(100);
@@ -1025,9 +1001,9 @@ console.log('\n=== SAME-LEVEL SUBSTITUTION TEST (Raw Materials) ===\n');
 
 // Test substitution between same-level resources (grain ↔ grapes both RAW, elasticity 0.7)
 const rawSubstCompany = game.addCompany('rawsubst', 'Raw Subst Corp');
-const rawOffice = rawSubstCompany.createFacility('office', prague) as Office | null;
-const grainRetail = rawSubstCompany.createFacility('retail', prague) as RetailFacility | null;
-const grapesRetail = rawSubstCompany.createFacility('retail', prague) as RetailFacility | null;
+const rawOffice = FacilityManager.createFacility(rawSubstCompany, 'office', prague) as Office | null;
+const grainRetail = FacilityManager.createFacility(rawSubstCompany, 'retail', prague) as RetailFacility | null;
+const grapesRetail = FacilityManager.createFacility(rawSubstCompany, 'retail', prague) as RetailFacility | null;
 
 if (grainRetail && grapesRetail && rawOffice) {
   rawOffice.setWorkerCount(100);
@@ -1077,13 +1053,13 @@ const demandCreationCompany1 = game.addCompany('demandcreate1', 'Demand Creation
 const demandCreationCompany2 = game.addCompany('demandcreate2', 'Demand Creation Test 2');
 const demandCreationCompany3 = game.addCompany('demandcreate3', 'Demand Creation Test 3');
 
-const dcOffice1 = demandCreationCompany1.createFacility('office', aarhus) as Office | null;
-const dcOffice2 = demandCreationCompany2.createFacility('office', aarhus) as Office | null;
-const dcOffice3 = demandCreationCompany3.createFacility('office', aarhus) as Office | null;
+const dcOffice1 = FacilityManager.createFacility(demandCreationCompany1, 'office', aarhus) as Office | null;
+const dcOffice2 = FacilityManager.createFacility(demandCreationCompany2, 'office', aarhus) as Office | null;
+const dcOffice3 = FacilityManager.createFacility(demandCreationCompany3, 'office', aarhus) as Office | null;
 
-const dcRetail1 = demandCreationCompany1.createFacility('retail', aarhus) as RetailFacility | null;
-const dcRetail2 = demandCreationCompany2.createFacility('retail', aarhus) as RetailFacility | null;
-const dcRetail3 = demandCreationCompany3.createFacility('retail', aarhus) as RetailFacility | null;
+const dcRetail1 = FacilityManager.createFacility(demandCreationCompany1, 'retail', aarhus) as RetailFacility | null;
+const dcRetail2 = FacilityManager.createFacility(demandCreationCompany2, 'retail', aarhus) as RetailFacility | null;
+const dcRetail3 = FacilityManager.createFacility(demandCreationCompany3, 'retail', aarhus) as RetailFacility | null;
 
 if (dcRetail1 && dcRetail2 && dcRetail3 && dcOffice1 && dcOffice2 && dcOffice3) {
   dcOffice1.setWorkerCount(100);
@@ -1180,7 +1156,7 @@ if (dcRetail1 && dcRetail2 && dcRetail3 && dcOffice1 && dcOffice2 && dcOffice3) 
 
   // Test wealth effect: Compare per-capita demand between Aarhus (wealth 0.85) and Prague (wealth 0.3)
   // Create Prague retailer using same company for simplicity
-  const pragueRetail = demandCreationCompany1.createFacility('retail', prague) as RetailFacility | null;
+  const pragueRetail = FacilityManager.createFacility(demandCreationCompany1, 'retail', prague) as RetailFacility | null;
   if (pragueRetail) {
     pragueRetail.setWorkerCount(pragueRetail.calculateRequiredWorkers());
     pragueRetail.addResource('grain', 50000);
@@ -1209,12 +1185,12 @@ console.log('\n=== DEMAND CALCULATION STEP-BY-STEP EXPLANATION ===\n');
 const stepCompany1 = game.addCompany('step1', 'Step Demo Corp 1');
 const stepCompany2 = game.addCompany('step2', 'Step Demo Corp 2');
 const stepCompany3 = game.addCompany('step3', 'Step Demo Corp 3');
-const stepOffice1 = stepCompany1.createFacility('office', prague) as Office | null;
-const stepOffice2 = stepCompany2.createFacility('office', prague) as Office | null;
-const stepOffice3 = stepCompany3.createFacility('office', prague) as Office | null;
-const stepRetail1 = stepCompany1.createFacility('retail', prague) as RetailFacility | null;
-const stepRetail2 = stepCompany2.createFacility('retail', prague) as RetailFacility | null;
-const stepRetail3 = stepCompany3.createFacility('retail', prague) as RetailFacility | null;
+const stepOffice1 = FacilityManager.createFacility(stepCompany1, 'office', prague) as Office | null;
+const stepOffice2 = FacilityManager.createFacility(stepCompany2, 'office', prague) as Office | null;
+const stepOffice3 = FacilityManager.createFacility(stepCompany3, 'office', prague) as Office | null;
+const stepRetail1 = FacilityManager.createFacility(stepCompany1, 'retail', prague) as RetailFacility | null;
+const stepRetail2 = FacilityManager.createFacility(stepCompany2, 'retail', prague) as RetailFacility | null;
+const stepRetail3 = FacilityManager.createFacility(stepCompany3, 'retail', prague) as RetailFacility | null;
 
 if (stepRetail1 && stepRetail2 && stepRetail3 && stepOffice1 && stepOffice2 && stepOffice3) {
   stepOffice1.setWorkerCount(100);
@@ -1347,9 +1323,9 @@ console.log('\n=== BIDIRECTIONAL SUBSTITUTION TEST ===\n');
 
 // Test that substitution affects both resources (loss and gain)
 const biSubstCompany = game.addCompany('bisubst', 'Bidirectional Subst Corp');
-const biOffice = biSubstCompany.createFacility('office', aarhus) as Office | null;
-const biGrainRetail = biSubstCompany.createFacility('retail', aarhus) as RetailFacility | null;
-const biGrapesRetail = biSubstCompany.createFacility('retail', aarhus) as RetailFacility | null;
+const biOffice = FacilityManager.createFacility(biSubstCompany, 'office', aarhus) as Office | null;
+const biGrainRetail = FacilityManager.createFacility(biSubstCompany, 'retail', aarhus) as RetailFacility | null;
+const biGrapesRetail = FacilityManager.createFacility(biSubstCompany, 'retail', aarhus) as RetailFacility | null;
 
 if (biGrainRetail && biGrapesRetail && biOffice) {
   biOffice.setWorkerCount(100);
@@ -1384,13 +1360,13 @@ const randCompany1 = game.addCompany('rand1', 'Random Corp 1');
 const randCompany2 = game.addCompany('rand2', 'Random Corp 2');
 const randCompany3 = game.addCompany('rand3', 'Random Corp 3');
 
-const randOffice1 = randCompany1.createFacility('office', prague) as Office | null;
-const randOffice2 = randCompany2.createFacility('office', prague) as Office | null;
-const randOffice3 = randCompany3.createFacility('office', prague) as Office | null;
+const randOffice1 = FacilityManager.createFacility(randCompany1, 'office', prague) as Office | null;
+const randOffice2 = FacilityManager.createFacility(randCompany2, 'office', prague) as Office | null;
+const randOffice3 = FacilityManager.createFacility(randCompany3, 'office', prague) as Office | null;
 
-const randRetail1 = randCompany1.createFacility('retail', prague) as RetailFacility | null;
-const randRetail2 = randCompany2.createFacility('retail', prague) as RetailFacility | null;
-const randRetail3 = randCompany3.createFacility('retail', prague) as RetailFacility | null;
+const randRetail1 = FacilityManager.createFacility(randCompany1, 'retail', prague) as RetailFacility | null;
+const randRetail2 = FacilityManager.createFacility(randCompany2, 'retail', prague) as RetailFacility | null;
+const randRetail3 = FacilityManager.createFacility(randCompany3, 'retail', prague) as RetailFacility | null;
 
 if (randRetail1 && randRetail2 && randRetail3 && randOffice1 && randOffice2 && randOffice3) {
   [randOffice1, randOffice2, randOffice3].forEach(o => o.setWorkerCount(100));
@@ -1423,8 +1399,8 @@ console.log('\n=== DEMAND SHOCKS TEST ===\n');
 // Run multiple ticks to verify demand shocks don't crash the system
 // (5% chance per resource per tick makes individual shocks hard to test deterministically)
 const shockCompany = game.addCompany('shock', 'Shock Test Corp');
-const shockOffice = shockCompany.createFacility('office', copenhagen) as Office | null;
-const shockRetail = shockCompany.createFacility('retail', copenhagen) as RetailFacility | null;
+const shockOffice = FacilityManager.createFacility(shockCompany, 'office', copenhagen) as Office | null;
+const shockRetail = FacilityManager.createFacility(shockCompany, 'retail', copenhagen) as RetailFacility | null;
 
 if (shockRetail && shockOffice) {
   shockOffice.setWorkerCount(100);

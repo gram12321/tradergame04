@@ -20,32 +20,14 @@ export class City {
     /**
      * Process retail demand for this city
      * 
-     * STEP 1: Calculate base demand per resource (consumption rate per capita)
-     * STEP 2: Multiply by city population to get total city demand
-     * STEP 2.5: Apply wealth effect (wealthier cities consume 0.8x to 1.5x more)
-     * STEP 3: Apply cross-resource substitution based on price deviations (BIDIRECTIONAL)
-     *         - Tracks both demand losses (to substitutes) and gains (from other resources)
-     *         - Net effect applied to maintain demand balance
-     * STEP 3.5: Apply demand creation for below-average pricing
-     *           - Retailers pricing below city average create additional demand
-     *           - Dampened to minimum 5 retailers to prevent thin market exploitation
-     *           - Only one retailer per company counted to prevent gaming
-     * STEP 3.6: Apply demand shocks (5% chance per resource)
-     *           - Randomly affects one retailer with ±15% demand shock
-     *           - Demand loss/gain redistributed proportionally to other retailers
-     * STEP 4a: Calculate equal share allocation (for reference)
-     * STEP 4b: Apply price sensitivity to adjust shares (avgPrice / price)^sensitivity
-     *         - Per-retailer randomness (±5%) applied to shares for natural variation
-     * STEP 4c: First pass - each retailer fulfills their price-weighted share (with shocks applied)
-     * STEP 4d: Second pass - redistribute unfulfilled demand among remaining retailers
+     * See `docs/pricesensivityImplementationPlan.md` for the detailed algorithm.
      * 
      * @param retailers All retail facilities in this city
      */
     processRetailDemand(retailers: RetailFacility[]): void {
         if (retailers.length === 0) return;
 
-        // STEP 1 & 2: Calculate base demand (consumption rate × population)
-        // STEP 2.5: Apply wealth effect (0.8x to 1.5x multiplier based on city wealth)
+        // STEP 1: Calculate base demand (consumption rate * population * wealth)
         const wealthMultiplier = 0.8 + this.wealth * 0.7; // wealth is 0-1, gives 0.8-1.5 range
         const baseDemand = new Map<string, number>();
         const avgPrices = new Map<string, number>();
@@ -63,7 +45,7 @@ export class City {
             }
         }
 
-        // STEP 3: Apply cross-resource substitution based on price deviations (BIDIRECTIONAL)
+        // STEP 2: Apply cross-resource substitution based on price deviations (BIDIRECTIONAL)
         const adjustedDemand = new Map(baseDemand); // Start with base demand
         const substitutionGains = new Map<string, number>(); // Track gains from other resources
         const substitutionLosses = new Map<string, number>(); // Track losses to other resources
@@ -130,7 +112,7 @@ export class City {
             adjustedDemand.set(resourceId, Math.max(0, baseDemandValue - loss + gain));
         }
 
-        // STEP 3.5: Apply demand creation for below-average pricing
+        // STEP 3: Apply demand creation for below-average pricing
         // When retailers price below city average, additional demand is created
         for (const [resourceId, currentDemand] of adjustedDemand.entries()) {
             const avgPrice = avgPrices.get(resourceId);
@@ -189,7 +171,7 @@ export class City {
             }
         }
 
-        // STEP 3.6: Apply demand shocks (5% chance per resource)
+        // STEP 4: Apply demand shocks (5% chance per resource)
         // Affects one random retailer, redistributes demand loss to others
         const demandShockAdjustments = new Map<string, Map<string, number>>(); // resourceId -> Map<retailerId, adjustment>
 
@@ -213,7 +195,7 @@ export class City {
             demandShockAdjustments.get(resourceId)!.set(shockedRetailer.id, shockMultiplier);
         }
 
-        // STEP 4: Distribute adjusted demand among retailers
+        // STEP 5: Distribute adjusted demand among retailers
         for (const [resourceId, totalDemand] of adjustedDemand.entries()) {
             if (totalDemand <= 0) continue;
 
@@ -221,8 +203,8 @@ export class City {
             const activeRetailers = retailers.filter(r => r.getPrice(resourceId) > 0);
             if (activeRetailers.length === 0) continue;
 
-            // STEP 4a: Equal share would be totalDemand / activeRetailers.length
-            // STEP 4b: Price-weighted distribution based on inter-retailer sensitivity
+            // Phase A: Equal share would be totalDemand / activeRetailers.length
+            // Phase B: Price-weighted distribution based on inter-retailer sensitivity
             const sensitivity = INTER_RETAILER_SENSITIVITY[resourceId] || 1.0;
 
             // Calculate average price across all retailers
@@ -287,7 +269,7 @@ export class City {
                 }
             }
 
-            // STEP 4c: First pass - each retailer tries to fulfill their share
+            // Phase C: First pass - each retailer tries to fulfill their share
             const unfulfilled: number[] = [];
             for (let i = 0; i < activeRetailers.length; i++) {
                 const retailer = activeRetailers[i];
@@ -299,7 +281,7 @@ export class City {
                 unfulfilled.push(demandShare - sold);
             }
 
-            // STEP 4d: Second pass - redistribute unfulfilled demand
+            // Phase D: Second pass - redistribute unfulfilled demand
             const totalUnfulfilled = unfulfilled.reduce((sum, val) => sum + val, 0);
             if (totalUnfulfilled > 0) {
                 const retailersWithInventory = activeRetailers.filter(r => r.getResource(resourceId) > 0);

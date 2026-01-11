@@ -1,7 +1,6 @@
 import { FacilityBase } from './FacilityBase.js';
 import { Recipe } from './Recipe.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
-import { ResourceRegistry } from './ResourceRegistry.js';
 import { City } from './City.js';
 
 /**
@@ -15,13 +14,12 @@ export class ProductionFacility extends FacilityBase {
 
   constructor(type: string, ownerId: string, name: string, city: City) {
     super(type, ownerId, name, city);
-    this.inventory = new Map();
-    this.cachedMaxInventoryCapacity = 0;
+    this.initInventory();
     this.recipe = null;
     this.productionProgress = 0;
     this.isProducing = false;
     // Now set workers after all properties are initialized
-    this.workers = this.calculateRequiredWorkers();
+    this.initWorkers();
   }
 
   /**
@@ -92,46 +90,19 @@ export class ProductionFacility extends FacilityBase {
    * Get net flow per tick
    */
   getNetFlow(): Map<string, number> {
-    const netFlow = new Map<string, number>();
-    const allResources = new Set<string>();
-
-    this.inventory!.forEach((_, resource) => allResources.add(resource));
     const imports = this.getImportRate();
-    const exports = this.getExportRate();
     const production = this.getProductionRate();
     const consumption = this.getConsumptionRate();
-
-    imports.forEach((_, resource) => allResources.add(resource));
-    exports.forEach((_, resource) => allResources.add(resource));
-    production.forEach((_, resource) => allResources.add(resource));
-    consumption.forEach((_, resource) => allResources.add(resource));
-
-    allResources.forEach(resource => {
-      let net = 0;
-      net += imports.get(resource) || 0;
-      net += production.get(resource) || 0;
-      net -= exports.get(resource) || 0;
-      net -= consumption.get(resource) || 0;
-
-      if (net !== 0) {
-        netFlow.set(resource, net);
-      }
-    });
-
-    return netFlow;
+    const exports = this.negateFlow(this.getExportRate());
+    const consumptionOut = this.negateFlow(consumption);
+    return this.buildNetFlow([imports, exports, production, consumptionOut]);
   }
 
   /**
    * Get ticks until resource depletes
    */
   getTicksUntilDepletion(resource: string): number | null {
-    const netFlow = this.getNetFlow().get(resource) || 0;
-    if (netFlow >= 0) return null;
-
-    const currentAmount = this.getResource(resource);
-    if (currentAmount <= 0) return 0;
-
-    return Math.floor(currentAmount / Math.abs(netFlow));
+    return this.getTicksUntilDepletionFromNetFlow(resource, this.getNetFlow());
   }
 
   /**

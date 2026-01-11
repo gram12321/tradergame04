@@ -16,7 +16,7 @@ export class Office extends FacilityBase {
     // Offices don't have a controlling office (they control themselves)
     this.officeEffectivityMultiplier = 1;
     // Now set workers after administrativeLoad is initialized
-    this.workers = this.calculateRequiredWorkers();
+    this.initWorkers();
   }
 
   /**
@@ -45,7 +45,7 @@ export class Office extends FacilityBase {
   calculateEffectivity(): void {
     const requiredWorkers = this.calculateRequiredWorkers();
     const ratio = this.workers / requiredWorkers;
-    
+
     if (ratio < 1) {
       this.effectivity = ratio * ratio; // Quadratic penalty
     } else {
@@ -86,8 +86,101 @@ export class Office extends FacilityBase {
   /**
    * Get office status string
    */
+  /**
+   * Get office status string
+   */
   getStatus(): string {
     const requiredWorkers = this.calculateRequiredWorkers();
     return `[${this.name}] Administrative | Load: $${this.administrativeLoad.toFixed(2)} | Required Workers: ${requiredWorkers} | Controlling: ${this.controlledFacilityIds.size} facilities`;
+  }
+
+  // ==========================================
+  // STATIC HELPERS (moved from Company.ts)
+  // ==========================================
+
+  /**
+   * Check if there is an office in the specified country
+   */
+  static hasOfficeInCountry(facilities: FacilityBase[], country: string): boolean {
+    return facilities.some(f => f.type === 'office' && f.city.country === country);
+  }
+
+  /**
+   * Get the office in a specific country
+   */
+  static getOfficeInCountry(facilities: FacilityBase[], country: string): Office | null {
+    const office = facilities.find(f => f.type === 'office' && f.city.country === country);
+    return office instanceof Office ? office : null;
+  }
+
+  /**
+   * Update administrative load for all offices based on controlled facilities
+   */
+  static updateAdministrativeLoads(facilities: FacilityBase[]): void {
+    const offices = facilities.filter(f => f instanceof Office) as Office[];
+
+    offices.forEach(office => {
+      let totalWages = 0;
+
+      // Filter out invalid IDs from controlled list while summing wages
+      const validControlledIds = new Set<string>();
+
+      office.controlledFacilityIds.forEach(facId => {
+        const facility = facilities.find(f => f.id === facId);
+        if (facility) {
+          totalWages += facility.getWagePerTick();
+          validControlledIds.add(facId);
+        }
+      });
+
+      // Update the set to remove deleted facilities
+      office.controlledFacilityIds = validControlledIds;
+
+      // Update the office's administrative load
+      office.updateAdministrativeLoad(totalWages);
+    });
+  }
+
+  /**
+   * Update office effectivity multipliers for all facilities
+   */
+  static updateOfficeEffectivity(facilities: FacilityBase[]): void {
+    const countries = new Set(facilities.map(f => f.city.country));
+
+    countries.forEach(country => {
+      const office = facilities.find(f => f instanceof Office && f.city.country === country) as Office | undefined;
+      const officeEffectivityCap = office ? Math.min(1, Math.max(0, office.effectivity)) : 0;
+
+      facilities
+        .filter(f => !(f instanceof Office) && f.city.country === country)
+        .forEach(f => {
+          f.officeEffectivityMultiplier = officeEffectivityCap;
+          f.calculateEffectivity();
+        });
+    });
+  }
+
+  /**
+   * Handle cleanup when a facility is destroyed
+   */
+  static onFacilityDestroyed(facilities: FacilityBase[], destroyedFacility: FacilityBase): void {
+    // If destroying an office, all facilities in that country lose effectivity
+    // (We assume the rule "one office per country" is enforced, so if we destroy 'an' office, it's 'the' office)
+    if (destroyedFacility instanceof Office) {
+      const country = destroyedFacility.city.country;
+
+      facilities
+        .filter(f => f.city.country === country && f.id !== destroyedFacility.id)
+        .forEach(f => f.effectivity = 0);
+
+    } else {
+      // If destroying a non-office, tell the controlling office
+      if (destroyedFacility.controllingOfficeId) {
+        const office = facilities.find(f => f.id === destroyedFacility.controllingOfficeId) as Office | undefined;
+        if (office) {
+          office.removeControlledFacility(destroyedFacility.id);
+        }
+      }
+    }
   }
 }

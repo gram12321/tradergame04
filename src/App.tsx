@@ -7,6 +7,8 @@ import { CityRegistry } from './game/CityRegistry'
 import { CompanyActions } from './components/CompanyActions'
 import { AdminMenu } from './components/AdminMenu'
 import { RetailFacility } from './game/RetailFacility'
+import { ProductionFacility } from './game/ProductionFacility'
+import { FacilityManager } from './game/FacilityManager'
 
 function App() {
   const [game, setGame] = useState<GameEngine | null>(null)
@@ -124,6 +126,9 @@ function App() {
           <button onClick={reloadGame}>🔄 Reload Game</button>
           <button onClick={() => setShowAdmin(!showAdmin)} className="danger">
             {showAdmin ? '🛠️ Hide Admin' : '🛠️ Show Admin'}
+          </button>
+          <button onClick={() => setShowInfo(!showInfo)}>
+            {showInfo ? 'ℹ️ Hide Game Info' : 'ℹ️ Show Game Info'}
           </button>
           <span style={{ color: '#9cdcfe', marginLeft: '10px' }}>
             Tick: {game.getTickCount()} | Companies: {companies.length}
@@ -348,7 +353,7 @@ function CompanyDisplay({ company, game }: { company: Company; game: GameEngine 
       <div className="company-header">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={{ fontSize: '1.4em', fontWeight: 'bold' }}>{company.name}</span>
-          <span style={{ fontSize: '0.8em', opacity: 0.7 }}>Wages: ${company.getTotalWagesPerTick().toFixed(2)}/tick</span>
+          <span style={{ fontSize: '0.8em', opacity: 0.7 }}>Wages: ${FacilityManager.getTotalWages(company).toFixed(2)}/tick</span>
         </div>
         <span className="balance">Balance: ${company.balance.toFixed(2)}</span>
       </div>
@@ -380,6 +385,12 @@ function CompanyDisplay({ company, game }: { company: Company; game: GameEngine 
                     <span className="stat-label">Size:</span>
                     <span className="stat-value">{facility.size}</span>
                   </div>
+                  {facility instanceof ProductionFacility && (
+                    <div className="stat-row">
+                      <span className="stat-label">Prod Multiplier:</span>
+                      <span className="stat-value">{(facility as ProductionFacility).getProductionMultiplier().toFixed(2)}x</span>
+                    </div>
+                  )}
                   <div className="stat-row">
                     <span className="stat-label">Workers:</span>
                     <span className="stat-value">{facility.workers}/{requiredWorkers}</span>
@@ -398,11 +409,22 @@ function CompanyDisplay({ company, game }: { company: Company; game: GameEngine 
                       <span className="stat-value">${(facility as RetailFacility).revenue.toFixed(2)}</span>
                     </div>
                   )}
+                  {facility instanceof ProductionFacility && (
+                    <div className="stat-row">
+                      <span className="stat-label">Status:</span>
+                      <span className="stat-value">
+                        {(facility as ProductionFacility).isProducing
+                          ? `Producing (${(facility as ProductionFacility).productionProgress}/${(facility as ProductionFacility).recipe?.ticksRequired})`
+                          : 'Idle'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {facility.inventory && (
                   <div className="facility-inventory">
-                    <strong>📦 Inventory ({facility.getTotalInventory().toFixed(1)}/{facility.getMaxInventoryCapacity()}):</strong>
+                    <strong>📦 Inventory ({facility.getTotalInventory().toFixed(1)}/{facility.getMaxInventoryCapacity()}) - {Math.round(facility.getInventoryPercentage() * 100)}%:</strong>
+                    {facility.isInventoryOverCapacity() && <span style={{ color: '#f48771', marginLeft: '5px', fontWeight: 'bold' }}>⚠️ OVER CAPACITY</span>}
                     {inventory.length === 0 ? (
                       <span style={{ marginLeft: '8px', color: '#666' }}>empty</span>
                     ) : (
@@ -419,23 +441,44 @@ function CompanyDisplay({ company, game }: { company: Company; game: GameEngine 
                     )}
 
                     {/* Flows */}
-                    <div style={{ marginTop: '8px', fontSize: '10px', opacity: 0.8 }}>
-                      {(facility as any).getNetFlow && (() => {
+                    <div style={{ marginTop: '8px', fontSize: '10px', opacity: 0.9 }}>
+                      {(facility as any).getImportRate && (() => {
+                        const imports = (facility as any).getImportRate()
+                        const exports = (facility as any).getExportRate()
+                        const production = (facility as any).getProductionRate ? (facility as any).getProductionRate() : new Map()
+                        const consumption = (facility as any).getConsumptionRate ? (facility as any).getConsumptionRate() : new Map()
                         const netFlow = (facility as any).getNetFlow()
-                        if (netFlow.size === 0) return null
+
+                        const allRes = new Set([...imports.keys(), ...exports.keys(), ...production.keys(), ...consumption.keys()])
+                        if (allRes.size === 0) return null
+
                         return (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            <strong>Net:</strong>
-                            {(Array.from(netFlow.entries()) as [string, number][]).map(([resId, rate]) => {
-                              const res = ResourceRegistry.get(resId as string)
-                              const r = rate as number
-                              const color = r >= 0 ? '#4ec9b0' : '#f48771'
-                              return (
-                                <span key={resId as string} style={{ color }}>
-                                  {res?.icon} {r >= 0 ? '+' : ''}{r.toFixed(1)}/tick
-                                </span>
-                              )
-                            })}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {imports.size > 0 && (
+                              <div><span style={{ color: '#9cdcfe' }}>Import:</span> {(Array.from(imports.entries()) as [string, number][]).map(([resId, rate]) => `${ResourceRegistry.get(resId)?.icon} +${rate.toFixed(1)}`).join(', ')}</div>
+                            )}
+                            {exports.size > 0 && (
+                              <div><span style={{ color: '#9cdcfe' }}>Export:</span> {(Array.from(exports.entries()) as [string, number][]).map(([resId, rate]) => `${ResourceRegistry.get(resId)?.icon} -${rate.toFixed(1)}`).join(', ')}</div>
+                            )}
+                            {production.size > 0 && (
+                              <div><span style={{ color: '#4ec9b0' }}>Prod:</span> {(Array.from(production.entries()) as [string, number][]).map(([resId, rate]) => `${ResourceRegistry.get(resId)?.icon} +${rate.toFixed(1)}`).join(', ')}</div>
+                            )}
+                            {consumption.size > 0 && (
+                              <div><span style={{ color: '#f48771' }}>Cons:</span> {(Array.from(consumption.entries()) as [string, number][]).map(([resId, rate]) => `${ResourceRegistry.get(resId)?.icon} -${rate.toFixed(1)}`).join(', ')}</div>
+                            )}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                              <strong>Net:</strong>
+                              {(Array.from(netFlow.entries()) as [string, number][]).map(([resId, rate]) => {
+                                const res = ResourceRegistry.get(resId as string)
+                                const r = rate as number
+                                const color = r >= 0 ? '#4ec9b0' : '#f48771'
+                                return (
+                                  <span key={resId as string} style={{ color, fontWeight: 'bold' }}>
+                                    {res?.icon} {r >= 0 ? '+' : ''}{r.toFixed(1)}/tick
+                                  </span>
+                                )
+                              })}
+                            </div>
                           </div>
                         )
                       })()}
@@ -451,7 +494,7 @@ function CompanyDisplay({ company, game }: { company: Company; game: GameEngine 
                             const ticks = (facility as any).getTicksUntilDepletion(resId)
                             if (ticks !== null) {
                               const res = ResourceRegistry.get(resId)
-                              warnings.push(<span key={resId} style={{ color: ticks < 10 ? '#f48771' : '#ce9178', marginRight: '8px' }}>{res?.icon} {ticks} ticks left</span>)
+                              warnings.push(<span key={resId} style={{ color: ticks < 10 ? '#f48771' : '#ce9178', marginRight: '8px', fontWeight: 'bold' }}>{res?.icon} {ticks} ticks left</span>)
                             }
                           }
                         })

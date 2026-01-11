@@ -4,6 +4,8 @@ import { ProductionFacility } from './ProductionFacility.js';
 import { StorageFacility } from './StorageFacility.js';
 import { RetailFacility } from './RetailFacility.js';
 import { CityRegistry } from './CityRegistry.js';
+import { FacilityManager } from './FacilityManager.js';
+import { Office } from './Office.js';
 
 export class GameEngine {
   private companies: Map<string, Company>;
@@ -122,17 +124,17 @@ export class GameEngine {
   async processTick(autosave: boolean = false): Promise<void> {
     // First, update administrative loads for all offices (based on controlled facility wages)
     this.companies.forEach(company => {
-      company.updateAdministrativeLoads();
+      Office.updateAdministrativeLoads(company.facilities);
     });
 
     // Then, update office effectivity multipliers for all facilities
     this.companies.forEach(company => {
-      company.updateOfficeEffectivity();
+      Office.updateOfficeEffectivity(company.facilities);
     });
 
     // Then, process wages for all companies
     this.companies.forEach(company => {
-      company.processWages();
+      FacilityManager.processWages(company);
     });
 
     // Then, process all production for all facilities
