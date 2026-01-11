@@ -2,6 +2,11 @@ import { createClient } from '@supabase/supabase-js'
 
 // Safe environment variable retrieval for both Vite (browser) and Node.js
 const getEnv = (name: string): string => {
+  // Deno way
+  if (typeof Deno !== 'undefined') {
+    return Deno.env.get(name) || Deno.env.get(name.replace('VITE_', '')) || '';
+  }
+
   // Vite/Browser way
   const viteEnv = (import.meta as any).env?.[name];
   if (viteEnv) return viteEnv;

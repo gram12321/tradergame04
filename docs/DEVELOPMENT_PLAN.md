@@ -19,12 +19,15 @@ Keep game logic pure and infrastructure-agnostic. Build mechanics first, add inf
 
 ---
 
-## Phase 3: Global Tick System (IN PROGRESS)
+## Phase 3: Global Tick System (COMPLETE)
 **Goal:** Game runs continuously for all players
 
 **Status:**
-- Game logic is ready for server-side execution.
-- Edge functions are planned for a centralized tick system to replace client-side ticking.
+- ✅ Edge function created with no code duplication
+- ✅ Direct SQL implementation for game logic
+- ✅ Clean deployment process via Supabase dashboard
+- ✅ Environment variables documented
+- See `docs/EDGE_FUNCTION_DEPLOYMENT.md` for deployment guide
 
 ---
 

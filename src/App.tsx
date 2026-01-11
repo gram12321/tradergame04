@@ -64,15 +64,36 @@ function App() {
     }
   }
 
-  const processTick = async () => {
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  const checkTick = async () => {
     if (!game) return
     try {
-      await game.processTick(true)
-      setCompanies(game.getCompanies())
-      forceUpdate({})
-      addMessage(`Tick ${game.getTickCount()} processed`, 'info')
+      const { GameStateRepository } = await import('./database/GameStateRepository')
+      const serverTick = await GameStateRepository.getTickCount()
+      if (serverTick > game.getTickCount()) {
+        console.log(`New tick detected (Server: ${serverTick}, Local: ${game.getTickCount()}). Reloading...`)
+        await reloadGame()
+      }
     } catch (err) {
-      addMessage('Error processing tick: ' + (err as Error).message, 'error')
+      console.error('Failed to check tick:', err)
+    }
+  }
+
+  const processTick = async () => {
+    try {
+      addMessage('Invoking server tick...', 'info')
+      const { supabase } = await import('./database/supabase')
+      const { data, error } = await supabase.functions.invoke('game-tick')
+
+      if (error) throw error
+
+      addMessage(`Server tick invoked: ${data?.message || 'Success'}`, 'success')
+      // Wait a moment for DB propagation then reload
+      setTimeout(reloadGame, 1000)
+    } catch (err: any) {
+      console.error('Error invoking tick:', err)
+      addMessage('Error invoking server tick: ' + err.message, 'error')
     }
   }
 
@@ -80,15 +101,16 @@ function App() {
     if (autoTickInterval) {
       clearInterval(autoTickInterval)
       setAutoTickInterval(null)
-      addMessage('Auto tick stopped', 'info')
+      addMessage('Live sync stopped', 'info')
     } else {
-      const interval = window.setInterval(() => {
-        processTick()
-      }, 1000)
+      const interval = window.setInterval(checkTick, 5000)
       setAutoTickInterval(interval)
-      addMessage('Auto tick started with autosave', 'success')
+      // Also do an immediate check
+      checkTick()
+      addMessage('Live sync started (Polling every 5s)', 'success')
     }
   }
+
 
   const reloadGame = async () => {
     if (autoTickInterval) {
@@ -119,9 +141,9 @@ function App() {
       <div className="controls">
         <div className="section-title">Game Controls</div>
         <div className="control-row">
-          <button onClick={processTick} disabled={companies.length === 0}>⏭️ Process Tick</button>
-          <button onClick={toggleAutoTick} disabled={companies.length === 0}>
-            {autoTickInterval ? '⏸️ Stop Auto Tick' : '▶️ Auto Tick (1s)'}
+          <button onClick={processTick} disabled={isLoading}>⏭️ Server Tick</button>
+          <button onClick={toggleAutoTick} disabled={isLoading}>
+            {autoTickInterval ? '⏸️ Stop Sync' : '🔄 Live Sync (5s)'}
           </button>
           <button onClick={reloadGame}>🔄 Reload Game</button>
           <button onClick={() => setShowAdmin(!showAdmin)} className="danger">
