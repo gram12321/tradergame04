@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { supabase } from './supabase.ts';
 
 export interface GameStateRow {
   id: string;

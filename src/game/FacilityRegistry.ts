@@ -1,4 +1,4 @@
-import { Recipe } from './Recipe.js';
+import { Recipe } from './Recipe.ts';
 
 /**
  * Category of facility

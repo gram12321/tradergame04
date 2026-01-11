@@ -1,4 +1,4 @@
-import { City } from './City.js';
+import { City } from './City.ts';
 
 export class CityRegistry {
     private static cities = new Map<string, City>();

@@ -1,4 +1,4 @@
-import { Recipe } from './Recipe.js';
+import { Recipe } from './Recipe.ts';
 
 /**
  * Registry of all available recipes in the game

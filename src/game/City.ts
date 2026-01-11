@@ -1,5 +1,5 @@
-import { DEFAULT_CONSUMPTION_RATES, INTER_RETAILER_SENSITIVITY, CROSS_LEVEL_ELASTICITY, RESOURCE_PRICE_RATIOS, ResourceLevel, ResourceRegistry } from './ResourceRegistry.js';
-import type { RetailFacility } from './RetailFacility.js';
+import { DEFAULT_CONSUMPTION_RATES, INTER_RETAILER_SENSITIVITY, CROSS_LEVEL_ELASTICITY, RESOURCE_PRICE_RATIOS, ResourceLevel, ResourceRegistry } from './ResourceRegistry.ts';
+import type { RetailFacility } from './RetailFacility.ts';
 
 export class City {
     constructor(

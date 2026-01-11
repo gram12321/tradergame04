@@ -1,4 +1,4 @@
-import { FacilityBase } from './FacilityBase.js';
+import { FacilityBase } from './FacilityBase.ts';
 
 export interface CompanyLike {
   id: string;

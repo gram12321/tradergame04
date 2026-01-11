@@ -1,11 +1,11 @@
-import { supabase } from './supabase.js';
-import { FacilityBase } from '../game/FacilityBase.js';
-import { ProductionFacility } from '../game/ProductionFacility.js';
-import { StorageFacility } from '../game/StorageFacility.js';
-import { Office } from '../game/Office.js';
-import { RetailFacility } from '../game/RetailFacility.js';
-import { City } from '../game/City.js';
-import { RecipeRegistry } from '../game/RecipeRegistry.js';
+import { supabase } from './supabase.ts';
+import { FacilityBase } from '../game/FacilityBase.ts';
+import { ProductionFacility } from '../game/ProductionFacility.ts';
+import { StorageFacility } from '../game/StorageFacility.ts';
+import { Office } from '../game/Office.ts';
+import { RetailFacility } from '../game/RetailFacility.ts';
+import { City } from '../game/City.ts';
+import { RecipeRegistry } from '../game/RecipeRegistry.ts';
 
 export interface FacilityRow {
   id: string;

@@ -1,11 +1,11 @@
-import { Company } from './Company.js';
-import { ContractSystem } from './ContractSystem.js';
-import { ProductionFacility } from './ProductionFacility.js';
-import { StorageFacility } from './StorageFacility.js';
-import { RetailFacility } from './RetailFacility.js';
-import { CityRegistry } from './CityRegistry.js';
-import { FacilityManager } from './FacilityManager.js';
-import { Office } from './Office.js';
+import { Company } from './Company.ts';
+import { ContractSystem } from './ContractSystem.ts';
+import { ProductionFacility } from './ProductionFacility.ts';
+import { StorageFacility } from './StorageFacility.ts';
+import { RetailFacility } from './RetailFacility.ts';
+import { CityRegistry } from './CityRegistry.ts';
+import { FacilityManager } from './FacilityManager.ts';
+import { Office } from './Office.ts';
 
 export class GameEngine {
   private companies: Map<string, Company>;

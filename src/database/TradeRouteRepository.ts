@@ -1,5 +1,5 @@
-import { supabase } from './supabase.js';
-import { SellOffer, TradeRoute } from '../game/ContractSystem.js';
+import { supabase } from './supabase.ts';
+import { SellOffer, TradeRoute } from '../game/ContractSystem.ts';
 
 export class TradeRouteRepository {
       /**

@@ -1,5 +1,5 @@
-import { FacilityBase } from './FacilityBase.js';
-import { City } from './City.js';
+import { FacilityBase } from './FacilityBase.ts';
+import { City } from './City.ts';
 
 /**
  * Retail facility that sells products to the population

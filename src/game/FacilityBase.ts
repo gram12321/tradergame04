@@ -1,6 +1,6 @@
-import { City } from './City.js';
-import { FacilityRegistry } from './FacilityRegistry.js';
-import { ResourceRegistry } from './ResourceRegistry.js';
+import { City } from './City.ts';
+import { FacilityRegistry } from './FacilityRegistry.ts';
+import { ResourceRegistry } from './ResourceRegistry.ts';
 
 export interface TradeRouteInfo {
   id: string;

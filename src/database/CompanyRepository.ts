@@ -1,5 +1,5 @@
-import { supabase } from './supabase.js';
-import { Company } from '../game/Company.js';
+import { supabase } from './supabase.ts';
+import { Company } from '../game/Company.ts';
 
 export interface CompanyRow {
   id: string;

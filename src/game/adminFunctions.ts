@@ -1,4 +1,4 @@
-import { Company } from './Company.js';
+import { Company } from './Company.ts';
 
 /**
  * Admin/Cheat functions for development and testing

@@ -6,6 +6,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // Import TypeScript directly from your GitHub repository
 const GITHUB_MAIN = "https://raw.githubusercontent.com/gram12321/tradergame04/main/src";
 
+// Import game engine from GitHub - Deno will resolve all imports automatically!
+const { GameEngine } = await import(`${GITHUB_MAIN}/game/GameEngine.ts`);
+
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +19,6 @@ console.log("🎮 Game Tick Edge Function initialized");
 console.log("📦 Using GitHub imports from: gram12321/tradergame04@main");
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -24,23 +26,9 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    // ======================
-    // 1. IMPORT GAME ENGINE
-    // ======================
-    console.log('📦 Importing GameEngine from GitHub...');
-    const GameEngineModule = await import(`${GITHUB_MAIN}/game/GameEngine.ts`);
-    const GameEngine = GameEngineModule.GameEngine;
-    console.log('✓ GameEngine imported successfully');
-
-    // ======================
-    // 2. INITIALIZE ENGINE
-    // ======================
     console.log('🔧 Initializing GameEngine...');
     const engine = new GameEngine();
 
-    // ======================
-    // 3. LOAD GAME STATE
-    // ======================
     console.log('📥 Loading game state from database...');
     const loadResult = await engine.loadAll();
     
@@ -51,9 +39,6 @@ serve(async (req) => {
     const currentTick = engine.getTickCount();
     console.log(`📊 Current tick: ${currentTick} → ${currentTick + 1}`);
 
-    // ======================
-    // 4. PROCESS GAME TICK
-    // ======================
     console.log('⚙️ Processing game tick...');
     const tickResult = await engine.tick();
     
@@ -61,9 +46,6 @@ serve(async (req) => {
       throw new Error(`Tick processing failed: ${tickResult.error}`);
     }
 
-    // ======================
-    // 5. SAVE GAME STATE
-    // ======================
     console.log('💾 Saving game state to database...');
     const saveResult = await engine.saveAll();
     
@@ -76,7 +58,6 @@ serve(async (req) => {
     
     console.log(`✅ Tick ${newTick} completed in ${duration}ms`);
 
-    // Get stats
     const companies = engine.getCompanies();
     const totalFacilities = companies.reduce((sum, c) => sum + c.getFacilityCount(), 0);
 
@@ -102,7 +83,7 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('❌ Tick processing failed:', error);
-    console.error('Stack:', error.stack);
+    console.error('Error details:', error);
     
     return new Response(
       JSON.stringify({ 

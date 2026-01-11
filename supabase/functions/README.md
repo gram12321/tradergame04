@@ -1,74 +1,53 @@
 # Supabase Edge Functions
 
-This directory contains Supabase Edge Functions (Deno-based serverless functions).
+## game-tick Function
 
-## 📁 Structure
+**Purpose**: Processes global game ticks server-side for 24/7 automated gameplay.
 
-```
-supabase/functions/
-├── _shared/           # Shared utilities (CORS headers, etc.)
-├── deno.json          # Deno configuration and import maps
-└── game-tick/         # Global tick processor
-    └── index.ts       # Main edge function
-```
+**Architecture**: Imports TypeScript code directly from GitHub repository.
 
-## 🎮 game-tick Function
-
-**Purpose**: Process global game ticks server-side (24/7 automated gameplay)
-
-**Architecture**: Uses **GitHub imports** to load game logic directly from the repository
-- No code duplication
-- Single source of truth in `src/`
-- Automatic updates when code is pushed to GitHub
-
-**Import Pattern**:
 ```typescript
+// Edge function imports from GitHub
 const GITHUB_MAIN = "https://raw.githubusercontent.com/gram12321/tradergame04/main/src";
-const GameEngineModule = await import(`${GITHUB_MAIN}/game/GameEngine.ts`);
+import { GameEngine } from `${GITHUB_MAIN}/game/GameEngine.ts`;
 ```
 
-Deno automatically:
-- Fetches TypeScript files from GitHub
-- Resolves all relative imports (Company, Facilities, Repositories, etc.)
-- Caches modules for fast execution
-- Handles `.js` → `.ts` extension mapping
+### Deployment
 
-## 🚀 Deployment
+1. **Update game logic** in `src/game/` or `src/database/`
+2. **Commit and push** to GitHub main branch
+3. **Redeploy edge function** via Supabase dashboard (updates import cache)
 
-See `GITHUB_IMPORTS_QUICKSTART.md` in the root for deployment instructions.
+### Configuration
 
-**Quick steps**:
-1. Push code to GitHub: `git push origin main`
-2. Deploy via Supabase dashboard
-3. Edge function uses latest code from GitHub
+- **JWT Verification**: Disabled (allows pg_cron invocation)
+- **Environment Variables**: Auto-provided by Supabase
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
 
-## ⚙️ Configuration
+### Automatic Execution
 
-**Environment Variables** (auto-provided by Supabase):
-- `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY` - Service role key for database access
+Runs hourly via pg_cron:
+- **Schedule**: `0 * * * *` (every hour at minute 0)
+- **Timeout**: 30 seconds
+- **Invocation**: Via `net.http_post`
 
-**Invocation**:
-- Manual: Via app's "Server Tick" button
-- Automatic: pg_cron runs hourly at minute 0
+### Manual Testing
 
-## 🔧 Development Workflow
+Use "Server Tick" button in the app or SQL:
 
-1. Edit game logic in `src/game/` or `src/database/`
-2. Test locally with React app
-3. Commit and push to GitHub
-4. Edge function automatically uses updated code (after cache refresh or redeploy)
+```sql
+SELECT net.http_post(
+  url := 'https://[project-ref].supabase.co/functions/v1/game-tick',
+  body := '{}',
+  headers := '{"Content-Type": "application/json"}'::jsonb
+);
+```
 
-**No code sync or bundling required!**
+## Benefits
 
-## 📚 Documentation
-
-- `docs/GITHUB_IMPORTS_SOLUTION.md` - Complete technical documentation
-- `GITHUB_IMPORTS_QUICKSTART.md` - Quick deployment guide
-- `docs/DEVELOPMENT_PLAN.md` - Overall project architecture
-
-## ⚠️ Important Notes
-
-- Repository must be **public** for GitHub imports to work (✓ gram12321/tradergame04 is public)
-- Deno caches imports for ~24 hours (redeploy to force refresh)
-- JWT verification must be **disabled** for pg_cron invocation (✓ already disabled)
+✅ Zero code duplication  
+✅ Single source of truth in `src/`  
+✅ Automatic updates from GitHub  
+✅ Full TypeScript game logic on server  
+✅ 24/7 gameplay for all players

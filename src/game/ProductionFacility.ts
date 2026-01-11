@@ -1,7 +1,7 @@
-import { FacilityBase } from './FacilityBase.js';
-import { Recipe } from './Recipe.js';
-import { FacilityRegistry } from './FacilityRegistry.js';
-import { City } from './City.js';
+import { FacilityBase } from './FacilityBase.ts';
+import { Recipe } from './Recipe.ts';
+import { FacilityRegistry } from './FacilityRegistry.ts';
+import { City } from './City.ts';
 
 /**
  * Production facility that can craft items using recipes
