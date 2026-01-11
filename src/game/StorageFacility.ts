@@ -17,50 +17,26 @@ export class StorageFacility extends FacilityBase {
   }
 
   /**
-   * Get import rate from buying contracts
-   */
-  getImportRate(): Map<string, number> {
-    const imports = new Map<string, number>();
-    this.getBuyingContracts().forEach(contract => {
-      const current = imports.get(contract.resource) || 0;
-      imports.set(contract.resource, current + contract.amountPerTick);
-    });
-    return imports;
-  }
-
-  /**
-   * Get export rate from selling contracts
-   */
-  getExportRate(): Map<string, number> {
-    const exports = new Map<string, number>();
-    this.getSellingContracts().forEach(contract => {
-      const current = exports.get(contract.resource) || 0;
-      exports.set(contract.resource, current + contract.amountPerTick);
-    });
-    return exports;
-  }
-
-  /**
    * Get net flow per tick (only contracts, no production)
    */
   getNetFlow(): Map<string, number> {
     const netFlow = new Map<string, number>();
     const allResources = new Set<string>();
-    
+
     this.inventory!.forEach((_, resource) => allResources.add(resource));
-    this.getImportRate().forEach((_, resource) => allResources.add(resource));
-    this.getExportRate().forEach((_, resource) => allResources.add(resource));
-    
+    const imports = this.getImportRate();
+    const exports = this.getExportRate();
+
+    imports.forEach((_, resource) => allResources.add(resource));
+    exports.forEach((_, resource) => allResources.add(resource));
+
     allResources.forEach(resource => {
-      let net = 0;
-      net += this.getImportRate().get(resource) || 0;
-      net -= this.getExportRate().get(resource) || 0;
-      
+      let net = (imports.get(resource) || 0) - (exports.get(resource) || 0);
       if (net !== 0) {
         netFlow.set(resource, net);
       }
     });
-    
+
     return netFlow;
   }
 
@@ -70,10 +46,10 @@ export class StorageFacility extends FacilityBase {
   getTicksUntilDepletion(resource: string): number | null {
     const netFlow = this.getNetFlow().get(resource) || 0;
     if (netFlow >= 0) return null;
-    
+
     const currentAmount = this.getResource(resource);
     if (currentAmount <= 0) return 0;
-    
+
     return Math.floor(currentAmount / Math.abs(netFlow));
   }
 

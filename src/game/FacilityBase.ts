@@ -2,19 +2,13 @@ import { City } from './City.js';
 import { FacilityRegistry } from './FacilityRegistry.js';
 import { ResourceRegistry } from './ResourceRegistry.js';
 
-export interface ContractInfo {
-  contractId: string;
+export interface TradeRouteInfo {
+  id: string;
   resource: string;
   amountPerTick: number;
-  pricePerUnit: number;
-  isSelling: boolean; // true if this facility is selling, false if buying
-}
-
-export interface InternalTransferInfo {
-  transferId: string;
-  resource: string;
-  amountPerTick: number;
-  isOutgoing: boolean; // true if this facility is sending, false if receiving
+  pricePerUnit: number; // 0 for internal
+  isOutgoing: boolean;  // true if this facility is sending/selling
+  isInternal: boolean;  // true if between facilities of the same company
 }
 
 /**
@@ -32,9 +26,8 @@ export abstract class FacilityBase {
   effectivity: number;
   controllingOfficeId: string | null; // Reference to the office that controls this facility
   officeEffectivityMultiplier: number; // Hard cap from controlling office (0-1)
-  contracts: Map<string, ContractInfo>;
-  internalTransfers: Map<string, InternalTransferInfo>;
-  
+  tradeRoutes: Map<string, TradeRouteInfo>;
+
   // Inventory properties (optional - only used by Production, Storage, Retail)
   inventory?: Map<string, number>;
   cachedMaxInventoryCapacity?: number;
@@ -49,8 +42,7 @@ export abstract class FacilityBase {
     this.effectivity = 1;
     this.controllingOfficeId = null;
     this.officeEffectivityMultiplier = 1;
-    this.contracts = new Map();
-    this.internalTransfers = new Map();
+    this.tradeRoutes = new Map();
     // Workers will be set by subclass after initialization
     this.workers = 0;
   }
@@ -73,14 +65,14 @@ export abstract class FacilityBase {
   calculateEffectivity(): void {
     const requiredWorkers = this.calculateRequiredWorkers();
     const ratio = this.workers / requiredWorkers;
-    
+
     let workerEffectivity: number;
     if (ratio < 1) {
       workerEffectivity = ratio * ratio; // Quadratic penalty
     } else {
       workerEffectivity = 1 + Math.sqrt(ratio - 1); // Diminishing returns
     }
-    
+
     const overflowPenalty = this.getOverflowPenalty();
     this.effectivity = workerEffectivity * overflowPenalty * this.officeEffectivityMultiplier;
   }
@@ -122,11 +114,11 @@ export abstract class FacilityBase {
   setWorkerCount(count: number): boolean {
     const requiredWorkers = this.calculateRequiredWorkers();
     const maxWorkers = requiredWorkers * 10;
-    
+
     if (count < 0 || count > maxWorkers) {
       return false;
     }
-    
+
     this.workers = count;
     this.calculateEffectivity();
     return true;
@@ -162,7 +154,7 @@ export abstract class FacilityBase {
   upgradeSize(): number | null {
     const cost = this.getUpgradeCost();
     if (cost <= 0) return null;
-    
+
     this.size++;
     const requiredWorkers = this.calculateRequiredWorkers();
     if (this.workers > requiredWorkers * 10) {
@@ -177,7 +169,7 @@ export abstract class FacilityBase {
    */
   degradeSize(): number | null {
     if (this.size <= 1) return null;
-    
+
     const refund = this.getDegradeCost();
     this.size--;
     const requiredWorkers = this.calculateRequiredWorkers();
@@ -189,71 +181,63 @@ export abstract class FacilityBase {
   }
 
   /**
-   * Add a contract to this facility
+   * Add a trade route (contract or internal transfer) to this facility
    */
-  addContract(contractId: string, resource: string, amountPerTick: number, pricePerUnit: number, isSelling: boolean): void {
-    this.contracts.set(contractId, {
-      contractId,
+  addTradeRoute(id: string, resource: string, amount: number, price: number, isOutgoing: boolean, isInternal: boolean): void {
+    this.tradeRoutes.set(id, {
+      id,
       resource,
-      amountPerTick,
-      pricePerUnit,
-      isSelling
+      amountPerTick: amount,
+      pricePerUnit: price,
+      isOutgoing,
+      isInternal
     });
   }
 
   /**
-   * Remove a contract from this facility
+   * Remove a trade route from this facility
    */
-  removeContract(contractId: string): boolean {
-    return this.contracts.delete(contractId);
+  removeTradeRoute(id: string): boolean {
+    return this.tradeRoutes.delete(id);
   }
 
   /**
-   * Get all selling contracts for this facility
+   * Get all outgoing trade routes for this facility
    */
-  getSellingContracts(): ContractInfo[] {
-    return Array.from(this.contracts.values()).filter(c => c.isSelling);
+  getOutgoingRoutes(): TradeRouteInfo[] {
+    return Array.from(this.tradeRoutes.values()).filter(r => r.isOutgoing);
   }
 
   /**
-   * Get all buying contracts for this facility
+   * Get all incoming trade routes for this facility
    */
-  getBuyingContracts(): ContractInfo[] {
-    return Array.from(this.contracts.values()).filter(c => !c.isSelling);
+  getIncomingRoutes(): TradeRouteInfo[] {
+    return Array.from(this.tradeRoutes.values()).filter(r => !r.isOutgoing);
   }
 
   /**
-   * Add an internal transfer to this facility
+   * Get import rate (combined contracts and transfers)
    */
-  addInternalTransfer(transferId: string, resource: string, amountPerTick: number, isOutgoing: boolean): void {
-    this.internalTransfers.set(transferId, {
-      transferId,
-      resource,
-      amountPerTick,
-      isOutgoing
+  getImportRate(): Map<string, number> {
+    const imports = new Map<string, number>();
+    this.getIncomingRoutes().forEach(route => {
+      imports.set(route.resource, (imports.get(route.resource) || 0) + route.amountPerTick);
     });
+    return imports;
   }
 
   /**
-   * Remove an internal transfer from this facility
+   * Get export rate (combined contracts and transfers)
    */
-  removeInternalTransfer(transferId: string): boolean {
-    return this.internalTransfers.delete(transferId);
+  getExportRate(): Map<string, number> {
+    const exports = new Map<string, number>();
+    this.getOutgoingRoutes().forEach(route => {
+      exports.set(route.resource, (exports.get(route.resource) || 0) + route.amountPerTick);
+    });
+    return exports;
   }
 
-  /**
-   * Get all outgoing internal transfers for this facility
-   */
-  getOutgoingInternalTransfers(): InternalTransferInfo[] {
-    return Array.from(this.internalTransfers.values()).filter(t => t.isOutgoing);
-  }
 
-  /**
-   * Get all incoming internal transfers for this facility
-   */
-  getIncomingInternalTransfers(): InternalTransferInfo[] {
-    return Array.from(this.internalTransfers.values()).filter(t => !t.isOutgoing);
-  }
 
   // ========================================
   // INVENTORY METHODS (for Production, Storage, Retail)
@@ -283,7 +267,7 @@ export abstract class FacilityBase {
    */
   getTotalInventory(): number {
     if (!this.inventory) return 0;
-    
+
     let totalWeight = 0;
     this.inventory.forEach((quantity, resourceId) => {
       const resourceDef = ResourceRegistry.get(resourceId);
@@ -316,12 +300,12 @@ export abstract class FacilityBase {
    */
   getOverflowPenalty(): number {
     if (!this.inventory) return 1.0; // No inventory = no penalty
-    
+
     const current = this.getTotalInventory();
     const max = this.getMaxInventoryCapacity();
-    
+
     if (current <= max) return 1.0;
-    
+
     const overflow = current - max;
     const overflowRatio = overflow / max;
     return Math.max(0, 1.0 - (overflowRatio * overflowRatio));
@@ -340,7 +324,7 @@ export abstract class FacilityBase {
    */
   addResource(resourceId: string, quantity: number): void {
     if (!this.inventory) return;
-    
+
     const current = this.inventory.get(resourceId) || 0;
     this.inventory.set(resourceId, current + quantity);
   }
@@ -351,7 +335,7 @@ export abstract class FacilityBase {
    */
   removeResource(resourceId: string, quantity: number): boolean {
     if (!this.inventory) return false;
-    
+
     const current = this.inventory.get(resourceId) || 0;
     if (current < quantity) {
       return false;

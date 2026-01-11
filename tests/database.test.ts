@@ -110,7 +110,66 @@ async function runDatabaseTests() {
                   console.error('❌ Failed to load Bob');
             }
 
+            console.log('\n🔍 PHASE 4: TRADE ROUTE PERSISTENCE TEST...\n');
+
+            const mGame = new GameEngine();
+            const sellerId = crypto.randomUUID();
+            const buyerId = crypto.randomUUID();
+            createdCompanyIds.push(sellerId, buyerId);
+
+            const sellerComp = mGame.addCompany(sellerId, 'Market Seller');
+            const buyerComp = mGame.addCompany(buyerId, 'Market Buyer');
+
+            // Add offices first (required to build other facilities)
+            sellerComp.createFacility('office', copenhagen);
+            buyerComp.createFacility('office', copenhagen);
+
+            const sFac = sellerComp.createFacility('farm', copenhagen);
+            const bFac = buyerComp.createFacility('warehouse', copenhagen);
+
+            const market = mGame.getContractSystem();
+            if (sFac && bFac) {
+                  // Create sell offer
+                  const offer = market.executeCreateSellOffer(sellerComp, sFac, 'grain', 10, 5.00);
+                  if (offer) {
+                        // Accept it
+                        market.executeAcceptSellOffer(buyerComp, sellerComp, offer.id, bFac, 5);
+                  }
+                  // Create internal transfer
+                  const sWarehouse = sellerComp.createFacility('warehouse', copenhagen);
+                  if (sWarehouse) {
+                        market.executeCreateInternalTransfer(sellerComp, sFac, sWarehouse, 'grain', 3);
+                  }
+            }
+
+            console.log('💾 Saving game with trade routes...');
+            const mSaveResult = await mGame.saveAll();
+            if (!mSaveResult.success) throw new Error(`Market save failed: ${mSaveResult.error}`);
+
+            console.log('📥 Loading into new engine to verify routes...');
+            const loadGame2 = new GameEngine();
+            await loadGame2.loadAll();
+
+            const market2 = loadGame2.getContractSystem();
+            const routes = market2.getAllTradeRoutes();
+            const offers = market2.getAllSellOffers();
+
+            const routeCountMatch = routes.length >= 2;
+            const offerCountMatch = offers.length >= 1;
+
+            console.log(`${offerCountMatch ? '✅' : '❌'} Sell offers persisted (${offers.length})`);
+            console.log(`${routeCountMatch ? '✅' : '❌'} Trade routes persisted (${routes.length})`);
+
+            // Verify facility links
+            const loadedBuyer = loadGame2.getCompanies().find(c => c.id === buyerId);
+            const bFacId = bFac?.id;
+            const loadedBFac = loadedBuyer?.facilities.find(f => f.id === bFacId);
+            const buyerRoutes = loadedBFac?.getIncomingRoutes() || [];
+            const linksMatch = buyerRoutes.length > 0;
+            console.log(`${linksMatch ? '✅' : '❌'} Facility trade route links restored`);
+
             console.log('\n🎉 ALL DATABASE AND PERSISTENCE TESTS PASSED!');
+
 
       } catch (err) {
             console.error('\n❌ TEST SUITE FAILED:', err);

@@ -7,8 +7,6 @@ import { CityRegistry } from './game/CityRegistry'
 import { CompanyActions } from './components/CompanyActions'
 import { AdminMenu } from './components/AdminMenu'
 import { RetailFacility } from './game/RetailFacility'
-import { ProductionFacility } from './game/ProductionFacility'
-import { StorageFacility } from './game/StorageFacility'
 
 function App() {
   const [game, setGame] = useState<GameEngine | null>(null)
@@ -235,9 +233,10 @@ function App() {
 
 function MarketDisplay({ game }: { game: GameEngine }) {
   const market = game.getContractSystem()
+  const tradeRoutes = market.getAllTradeRoutes()
   const sellOffers = market.getAllSellOffers()
-  const contracts = market.getAllContracts()
-  const transfers = market.getAllInternalTransfers()
+  const contracts = tradeRoutes.filter(r => !r.isInternal)
+  const transfers = tradeRoutes.filter(r => r.isInternal)
 
   return (
     <div className="info-panel">
@@ -285,7 +284,7 @@ function MarketDisplay({ game }: { game: GameEngine }) {
               const status = t.lastFailedTick !== null ? '⚠️ FAILED' : '✅'
               return (
                 <div key={t.id} style={{ padding: '2px 0' }}>
-                  {status} {res?.icon} {t.amountPerTick}/tick ({t.fromFacilityName} → {t.toFacilityName})
+                  {status} {res?.icon} {t.amountPerTick}/tick ({t.sellerFacilityName} → {t.buyerFacilityName})
                 </div>
               )
             })}
@@ -365,8 +364,8 @@ function CompanyDisplay({ company, game }: { company: Company; game: GameEngine 
             const inventory = Array.from(facility.inventory?.entries() || [])
               .filter(([_, amount]) => amount > 0)
 
-            const sellingContracts = facility.getSellingContracts()
-            const buyingContracts = facility.getBuyingContracts()
+            const sellingContracts = facility.getOutgoingRoutes()
+            const buyingContracts = facility.getIncomingRoutes()
 
             return (
               <div key={facility.id} className="facility-item">
@@ -467,13 +466,13 @@ function CompanyDisplay({ company, game }: { company: Company; game: GameEngine 
                     {sellingContracts.length > 0 && (
                       <div>
                         <strong style={{ color: '#4ec9b0' }}>Outgoing:</strong>
-                        {sellingContracts.map(c => <div key={c.contractId}>• {c.amountPerTick}/tick {c.resource} @ ${c.pricePerUnit}</div>)}
+                        {sellingContracts.map(c => <div key={c.id}>• {c.amountPerTick}/tick {c.resource} @ ${c.pricePerUnit}</div>)}
                       </div>
                     )}
                     {buyingContracts.length > 0 && (
                       <div style={{ marginTop: '3px' }}>
                         <strong style={{ color: '#ce9178' }}>Incoming:</strong>
-                        {buyingContracts.map(c => <div key={c.contractId}>• {c.amountPerTick}/tick {c.resource} @ ${c.pricePerUnit}</div>)}
+                        {buyingContracts.map(c => <div key={c.id}>• {c.amountPerTick}/tick {c.resource} @ ${c.pricePerUnit}</div>)}
                       </div>
                     )}
                   </div>

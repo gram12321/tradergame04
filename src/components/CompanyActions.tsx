@@ -448,14 +448,14 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
     if (!confirm('Cancel this contract?')) return
 
     const market = game.getContractSystem()
-    const contract = market.getContract(id)
-    if (!contract) return
+    const route = market.getTradeRoute(id)
+    if (!route) return
 
     // Find the other company involved
-    const otherCompanyId = contract.sellerId === company.id ? contract.buyerId : contract.sellerId
+    const otherCompanyId = route.sellerId === company.id ? route.buyerId : route.sellerId
     const otherCompany = game.getCompanies().find((c: any) => c.id === otherCompanyId)
 
-    const success = market.executeCancelContract(id, company, otherCompany)
+    const success = market.executeCancelTradeRoute(id, company, otherCompany)
     if (success) {
       await company.save()
       if (otherCompany) await otherCompany.save()
@@ -469,9 +469,9 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
     let success = false
     const market = game.getContractSystem()
     if (isSeller) {
-      success = market.executeUpdateContractPrice(id, company, editPrice)
+      success = market.executeUpdateTradeRoutePrice(id, company, editPrice)
     } else {
-      success = market.executeUpdateContractAmount(id, company, editAmount)
+      success = market.executeUpdateTradeRouteAmount(id, company, editAmount)
     }
 
     if (success) {
@@ -485,7 +485,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
   const handleCancelInternalTransfer = async (id: string) => {
     if (!confirm('Cancel this internal transfer?')) return
-    const success = game.getContractSystem().executeCancelInternalTransfer(id, company)
+    const success = game.getContractSystem().executeCancelTradeRoute(id, company, null)
     if (success) {
       await company.save()
       await game.getContractSystem().save()
@@ -495,7 +495,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
   }
 
   const handleUpdateInternalTransfer = async (id: string) => {
-    const success = game.getContractSystem().executeUpdateInternalTransferAmount(id, company, editAmount)
+    const success = game.getContractSystem().executeUpdateTradeRouteAmount(id, company, editAmount)
     if (success) {
       await company.save()
       await game.getContractSystem().save()
@@ -707,7 +707,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
           <h4>Active Internal Transfers</h4>
           {(() => {
-            const transfers = game.getContractSystem().getAllInternalTransfers().filter((t: any) => t.ownerId === company.id)
+            const transfers = game.getContractSystem().getAllTradeRoutes().filter((t: any) => t.isInternal && t.sellerId === company.id)
             if (transfers.length === 0) return <p style={{ color: '#666' }}>No active internal transfers</p>
             return (
               <div style={{ fontSize: '12px' }}>
@@ -716,7 +716,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
                   return (
                     <div key={t.id} style={{ padding: '8px', background: '#1e1e1e', border: '1px solid #333', marginBottom: '5px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                        <span>{res?.icon} {t.resource}: {t.fromFacilityName} → {t.toFacilityName}</span>
+                        <span>{res?.icon} {t.resource}: {t.sellerFacilityName} → {t.buyerFacilityName}</span>
                         <strong>{t.amountPerTick}/tick</strong>
                       </div>
                       {editingId === t.id ? (
@@ -956,7 +956,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
           <h4>My Contracts (Buying & Selling)</h4>
           {(() => {
-            const contracts = game.getContractSystem().getAllContracts().filter((c: any) => c.sellerId === company.id || c.buyerId === company.id)
+            const contracts = game.getContractSystem().getAllTradeRoutes().filter((c: any) => !c.isInternal && (c.sellerId === company.id || c.buyerId === company.id))
             if (contracts.length === 0) return <p style={{ color: '#666' }}>No active contracts</p>
             return (
               <div style={{ fontSize: '12px' }}>

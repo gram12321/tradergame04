@@ -54,6 +54,12 @@ export class GameEngine {
         }
       }
 
+      // Save contract system state (sell offers and trade routes)
+      const marketResult = await this.contractSystem.save();
+      if (!marketResult.success) {
+        return marketResult;
+      }
+
       console.log(`✅ Game saved successfully (tick ${this.tickCount})`);
       return { success: true };
     } catch (err: any) {
@@ -85,6 +91,12 @@ export class GameEngine {
 
         // Add to game engine
         this.companies.set(companyRow.id, companyRow);
+      }
+
+      // Load contract system state (sell offers and trade routes)
+      const marketLoadResult = await this.contractSystem.load(this.companies);
+      if (!marketLoadResult.success) {
+        return marketLoadResult;
       }
 
       console.log(`✅ Game loaded successfully (tick ${this.tickCount}, ${this.companies.size} companies)`);
@@ -130,11 +142,8 @@ export class GameEngine {
       });
     });
 
-    // Then, process all contracts in creation order
-    this.processContracts();
-
-    // Then, process all internal transfers in creation order
-    this.processInternalTransfers();
+    // Then, process all trade routes (contracts and internal transfers) in creation order
+    this.processTradeRoutes();
 
     // Process retail demand for all cities
     this.processRetailDemand();
@@ -192,150 +201,48 @@ export class GameEngine {
    * Update sell offers based on facility net production
    */
   private updateSellOffers(): void {
-    // Get all sell offers
-    const offers = this.contractSystem.getAllSellOffers();
-
-    offers.forEach(offer => {
-      // Find the seller company and facility
+    this.contractSystem.getAllSellOffers().forEach(offer => {
       const seller = this.companies.get(offer.sellerId);
-      if (!seller) return;
+      const facility = seller?.facilities.find(f => f.id === offer.sellerFacilityId);
 
-      const facility = seller.facilities.find(f => f.id === offer.sellerFacilityId);
-      if (!facility) return;
-
-      // Only production and storage facilities have inventory and flow tracking
-      if (!(facility instanceof ProductionFacility || facility instanceof StorageFacility)) return;
-
-      // Get the net flow for this resource
-      const netFlow = facility.getNetFlow();
-      const resourceNetFlow = netFlow.get(offer.resource) || 0;
-
-      // Update available amount based on net flow
-      const newAvailable = Math.max(0, offer.amountAvailable + resourceNetFlow);
-      this.contractSystem.updateSellOfferAmount(offer.id, newAvailable);
+      if (facility instanceof ProductionFacility || facility instanceof StorageFacility) {
+        const netFlow = facility.getNetFlow().get(offer.resource) || 0;
+        this.contractSystem.updateSellOfferAmount(offer.id, Math.max(0, offer.amountAvailable + netFlow));
+      }
     });
   }
 
   /**
-   * Process all contracts for the current tick
-   * Contracts are processed in creation order (oldest first)
+   * Process all recurring trade routes (contracts and internal transfers)
    */
-  private processContracts(): void {
-    const contracts = this.contractSystem.getContractsByCreationOrder();
+  private processTradeRoutes(): void {
+    this.contractSystem.getTradeRoutesByCreationOrder().forEach(route => {
+      const buyer = this.companies.get(route.buyerId);
+      const seller = this.companies.get(route.sellerId);
+      const fromFac = seller?.facilities.find(f => f.id === route.sellerFacilityId);
+      const toFac = buyer?.facilities.find(f => f.id === route.buyerFacilityId);
 
-    for (const contract of contracts) {
-      // Find buyer and seller companies
-      const buyer = this.companies.get(contract.buyerId);
-      const seller = this.companies.get(contract.sellerId);
+      if (!fromFac || !toFac || !(fromFac instanceof ProductionFacility || fromFac instanceof StorageFacility) || !(toFac instanceof ProductionFacility || toFac instanceof StorageFacility)) return;
 
-      if (!buyer || !seller) {
-        // Company no longer exists, skip this contract
-        // (In a real game, you might want to auto-cancel these)
-        continue;
-      }
+      // Internal transfer requirements: at least one warehouse
+      if (route.isInternal && !(fromFac instanceof StorageFacility || toFac instanceof StorageFacility)) return;
 
-      // Find buyer and seller facilities
-      const buyerFacility = buyer.facilities.find(f => f.id === contract.buyerFacilityId);
-      const sellerFacility = seller.facilities.find(f => f.id === contract.sellerFacilityId);
+      const hasMoney = route.isInternal || buyer!.balance >= route.totalPrice;
+      const hasStock = fromFac.getResource(route.resource) >= route.amountPerTick;
 
-      if (!buyerFacility || !sellerFacility) {
-        // Facility no longer exists, skip this contract
-        continue;
-      }
-
-      // Check if facilities have inventory (Production or Storage facilities)
-      if (!(buyerFacility instanceof ProductionFacility || buyerFacility instanceof StorageFacility) ||
-        !(sellerFacility instanceof ProductionFacility || sellerFacility instanceof StorageFacility)) {
-        // Can't execute contracts on offices
-        continue;
-      }
-
-      // Verify buyer has enough money
-      const hasEnoughMoney = buyer.balance >= contract.totalPrice;
-
-      // Verify seller has enough available resources
-      // (Available = total - reserved for other contracts/offers)
-      const sellerAvailable = sellerFacility.getResource(contract.resource);
-      const hasEnoughResources = sellerAvailable >= contract.amountPerTick;
-
-      // Execute contract if both conditions are met
-      if (hasEnoughMoney && hasEnoughResources) {
-        // Transfer resources from seller to buyer
-        sellerFacility.removeResource(contract.resource, contract.amountPerTick);
-        buyerFacility.addResource(contract.resource, contract.amountPerTick);
-
-        // Transfer money from buyer to seller
-        buyer.balance -= contract.totalPrice;
-        seller.balance += contract.totalPrice;
-
-        // Mark contract as successful (clear any previous failure)
-        this.contractSystem.markContractSuccess(contract.id);
+      if (hasMoney && hasStock) {
+        if (fromFac.removeResource(route.resource, route.amountPerTick)) {
+          toFac.addResource(route.resource, route.amountPerTick);
+          if (!route.isInternal) {
+            buyer!.balance -= route.totalPrice;
+            seller!.balance += route.totalPrice;
+          }
+          this.contractSystem.markRouteStatus(route.id, null);
+        }
       } else {
-        // Mark contract as failed for this tick
-        this.contractSystem.markContractFailed(contract.id, this.tickCount);
+        this.contractSystem.markRouteStatus(route.id, this.tickCount);
       }
-    }
-  }
-
-  /**
-   * Process all internal transfers for the current tick
-   * Internal transfers are processed in creation order (oldest first)
-   */
-  private processInternalTransfers(): void {
-    const transfers = this.contractSystem.getInternalTransfersByCreationOrder();
-
-    for (const transfer of transfers) {
-      // Find owner company
-      const owner = this.companies.get(transfer.ownerId);
-
-      if (!owner) {
-        // Company no longer exists, skip this transfer
-        continue;
-      }
-
-      // Find from and to facilities
-      const fromFacility = owner.facilities.find(f => f.id === transfer.fromFacilityId);
-      const toFacility = owner.facilities.find(f => f.id === transfer.toFacilityId);
-
-      if (!fromFacility || !toFacility) {
-        // Facility no longer exists, skip this transfer
-        continue;
-      }
-
-      // Check if at least one facility is a warehouse (Storage facility)
-      // Transfers are allowed between any facility and a warehouse (in either direction)
-      const fromIsWarehouse = fromFacility instanceof StorageFacility;
-      const toIsWarehouse = toFacility instanceof StorageFacility;
-
-      if (!fromIsWarehouse && !toIsWarehouse) {
-        // At least one facility must be a warehouse
-        continue;
-      }
-
-      // Both facilities must have inventory (Production or Storage facilities)
-      if (!(fromFacility instanceof ProductionFacility || fromFacility instanceof StorageFacility) ||
-        !(toFacility instanceof ProductionFacility || toFacility instanceof StorageFacility)) {
-        // Can't transfer to/from offices
-        continue;
-      }
-
-      // Verify source has enough available resources
-      const sourceAvailable = fromFacility.getResource(transfer.resource);
-      const hasEnoughResources = sourceAvailable >= transfer.amountPerTick;
-
-      // Execute transfer if resources are available
-      if (hasEnoughResources) {
-        // Transfer resources from source to destination (no cost)
-        fromFacility.removeResource(transfer.resource, transfer.amountPerTick);
-        toFacility.addResource(transfer.resource, transfer.amountPerTick);
-
-        // Mark transfer as successful (clear any previous failure)
-        this.contractSystem.markInternalTransferSuccess(transfer.id);
-      } else {
-        // Mark transfer as failed for this tick
-        this.contractSystem.markInternalTransferFailed(transfer.id, this.tickCount);
-      }
-    }
+    });
   }
 
   /**

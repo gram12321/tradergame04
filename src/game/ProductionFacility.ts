@@ -38,7 +38,7 @@ export class ProductionFacility extends FacilityBase {
   setRecipe(recipe: Recipe): boolean {
     if (!FacilityRegistry.canProduce(this.type)) return false;
     if (!FacilityRegistry.isRecipeAllowed(this.type, recipe.name)) return false;
-    
+
     this.recipe = recipe;
     this.isProducing = false;
     this.productionProgress = 0;
@@ -89,54 +89,35 @@ export class ProductionFacility extends FacilityBase {
   }
 
   /**
-   * Get import rate from buying contracts
-   */
-  getImportRate(): Map<string, number> {
-    const imports = new Map<string, number>();
-    this.getBuyingContracts().forEach(contract => {
-      const current = imports.get(contract.resource) || 0;
-      imports.set(contract.resource, current + contract.amountPerTick);
-    });
-    return imports;
-  }
-
-  /**
-   * Get export rate from selling contracts
-   */
-  getExportRate(): Map<string, number> {
-    const exports = new Map<string, number>();
-    this.getSellingContracts().forEach(contract => {
-      const current = exports.get(contract.resource) || 0;
-      exports.set(contract.resource, current + contract.amountPerTick);
-    });
-    return exports;
-  }
-
-  /**
    * Get net flow per tick
    */
   getNetFlow(): Map<string, number> {
     const netFlow = new Map<string, number>();
     const allResources = new Set<string>();
-    
+
     this.inventory!.forEach((_, resource) => allResources.add(resource));
-    this.getImportRate().forEach((_, resource) => allResources.add(resource));
-    this.getExportRate().forEach((_, resource) => allResources.add(resource));
-    this.getProductionRate().forEach((_, resource) => allResources.add(resource));
-    this.getConsumptionRate().forEach((_, resource) => allResources.add(resource));
-    
+    const imports = this.getImportRate();
+    const exports = this.getExportRate();
+    const production = this.getProductionRate();
+    const consumption = this.getConsumptionRate();
+
+    imports.forEach((_, resource) => allResources.add(resource));
+    exports.forEach((_, resource) => allResources.add(resource));
+    production.forEach((_, resource) => allResources.add(resource));
+    consumption.forEach((_, resource) => allResources.add(resource));
+
     allResources.forEach(resource => {
       let net = 0;
-      net += this.getImportRate().get(resource) || 0;
-      net += this.getProductionRate().get(resource) || 0;
-      net -= this.getExportRate().get(resource) || 0;
-      net -= this.getConsumptionRate().get(resource) || 0;
-      
+      net += imports.get(resource) || 0;
+      net += production.get(resource) || 0;
+      net -= exports.get(resource) || 0;
+      net -= consumption.get(resource) || 0;
+
       if (net !== 0) {
         netFlow.set(resource, net);
       }
     });
-    
+
     return netFlow;
   }
 
@@ -146,10 +127,10 @@ export class ProductionFacility extends FacilityBase {
   getTicksUntilDepletion(resource: string): number | null {
     const netFlow = this.getNetFlow().get(resource) || 0;
     if (netFlow >= 0) return null;
-    
+
     const currentAmount = this.getResource(resource);
     if (currentAmount <= 0) return 0;
-    
+
     return Math.floor(currentAmount / Math.abs(netFlow));
   }
 
@@ -201,8 +182,8 @@ export class ProductionFacility extends FacilityBase {
       .map(([resource, amount]) => `${resource}: ${amount}`)
       .join(', ');
 
-    const statusStr = this.isProducing 
-      ? `Producing (${this.productionProgress}/${this.recipe?.ticksRequired})` 
+    const statusStr = this.isProducing
+      ? `Producing (${this.productionProgress}/${this.recipe?.ticksRequired})`
       : 'Idle';
 
     return `[${this.name}] ${statusStr} | Inventory: {${inventoryStr || 'empty'}}`;

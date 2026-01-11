@@ -10,8 +10,10 @@ import { RetailFacility } from '../src/game/RetailFacility.js';
 
 console.log('\n=== STARTING GAME ENGINE TESTS ===\n');
 
+
 // Create game instance
 const game = new GameEngine();
+const market = game.getContractSystem();
 
 // Add test companies
 const alice = game.addCompany('alice', 'Alice Corp');
@@ -380,7 +382,7 @@ if (winery && wineryFarm && wineryOffice) {
     assert(grapesProduced > 0, `Farm produced grapes: ${grapesProduced.toFixed(1)}`);
 
     // Transfer grapes to winery
-    wineryCompany.transferResource(wineryFarm, winery, 'grapes', Math.min(grapesProduced, 20));
+    market.executeInstantTransfer(wineryCompany, wineryFarm, winery, 'grapes', Math.min(grapesProduced, 20));
     const wineryGrapes = winery.getResource('grapes');
     assert(wineryGrapes > 0, `Grapes transferred to winery: ${wineryGrapes.toFixed(1)}`);
 
@@ -477,7 +479,7 @@ if (ioFarm && testMill) {
   const farmBefore = ioFarm.getResource('grain');
   const millBefore = testMill.getResource('grain');
 
-  const transferred = ioTestCompany.transferResource(ioFarm, testMill, 'grain', transferAmount);
+  const transferred = market.executeInstantTransfer(ioTestCompany, ioFarm, testMill, 'grain', transferAmount);
 
   const farmAfter = ioFarm.getResource('grain');
   const millAfter = testMill.getResource('grain');
@@ -494,7 +496,7 @@ if (ioFarm && testMill) {
     const farm2Before = ioFarm2.getResource('grain');
     const ioMillBefore = ioFarm.getResource('grain');
 
-    const success = ioTestCompany.transferResource(ioFarm2, ioFarm, 'grain', 50);
+    const success = market.executeInstantTransfer(ioTestCompany, ioFarm2, ioFarm, 'grain', 50);
 
     assert(success, 'Transfer succeeded within same company');
     assert(
@@ -568,7 +570,7 @@ if (retailFacility && retailOffice && retailFarm) {
   const farmGrainBefore = retailFarm.getResource('grain');
 
   // Test transfer from farm to retail
-  const transferred = retailCompany.transferResource(retailFarm, retailFacility, 'grain', 50);
+  const transferred = market.executeInstantTransfer(retailCompany, retailFarm, retailFacility, 'grain', 50);
   assert(transferred, 'Successfully transferred grain from farm to retail');
 
   const farmGrainAfter = retailFarm.getResource('grain');
@@ -828,7 +830,7 @@ if (lowStockRetail && highStockRetail && lowStockOffice) {
 
 console.log('\n=== MARKET SELL OFFER TEST ===\n');
 
-const market = game.getContractSystem();
+
 const sellerCompany = game.addCompany('seller', 'Seller Corp');
 const sellerOffice = sellerCompany.createFacility('office', copenhagen) as Office | null;
 const sellerFarm = sellerCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
@@ -838,11 +840,11 @@ if (sellerFarm && sellerOffice) {
   sellerFarm.setWorkerCount(sellerFarm.calculateRequiredWorkers());
   sellerFarm.addResource('grain', 100);
 
-  const offer = sellerCompany.createSellOffer(market, sellerFarm, 'grain', 10, 5.00);
+  const offer = market.executeCreateSellOffer(sellerCompany, sellerFarm, 'grain', 10, 5.00);
 
   assert(offer !== null, 'Sell offer created successfully');
 
-  const marketOffers = market.getSellOffersByResource('grain');
+  const marketOffers = market.getAllSellOffers().filter(o => o.resource === 'grain');
   assert(
     marketOffers.some(o => o.id === offer?.id),
     'Sell offer appears on market'
@@ -851,7 +853,7 @@ if (sellerFarm && sellerOffice) {
   // Test that offer persists even with no stock
   sellerFarm.removeResource('grain', 100);
 
-  const offersAfterDrain = market.getSellOffersByResource('grain');
+  const offersAfterDrain = market.getAllSellOffers().filter(o => o.resource === 'grain');
   const stillExists = offersAfterDrain.some(o => o.id === offer?.id);
 
   assert(
@@ -862,7 +864,7 @@ if (sellerFarm && sellerOffice) {
   // Add stock back
   sellerFarm.addResource('grain', 50);
 
-  const restoredOffers = market.getSellOffersByResource('grain');
+  const restoredOffers = market.getAllSellOffers().filter(o => o.resource === 'grain');
   const hasStock = restoredOffers.find(o => o.id === offer?.id);
 
   assert(
@@ -881,7 +883,7 @@ if (buyerWarehouse && sellerFarm && buyerOffice) {
   buyerOffice.setWorkerCount(100);
   buyerWarehouse.setWorkerCount(buyerWarehouse.calculateRequiredWorkers());
 
-  const grainOffers = market.getSellOffersByResource('grain');
+  const grainOffers = market.getAllSellOffers().filter(o => o.resource === 'grain');
   const offer = grainOffers.find(o => o.sellerId === sellerCompany.id);
 
   if (offer) {
@@ -890,13 +892,12 @@ if (buyerWarehouse && sellerFarm && buyerOffice) {
     const warehouseBefore = buyerWarehouse.getResource('grain');
     const farmBefore = sellerFarm.getResource('grain');
 
-    const contract = buyerCompany.acceptSellOffer(
-      market,
+    const contract = market.executeAcceptSellOffer(
+      buyerCompany,
       sellerCompany,
       offer.id,
       buyerWarehouse,
-      5,
-      game.getTickCount()
+      5
     );
 
     assert(contract !== null, 'Contract created between companies');
