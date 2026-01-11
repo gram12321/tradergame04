@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Safe environment variable retrieval for both Vite (browser) and Node.js
+// Declare Deno global type for TypeScript
+declare const Deno: any;
+
+// Safe environment variable retrieval for both Vite (browser) and Deno
 const getEnv = (name: string): string => {
-  // Deno way
+  // Deno way (edge functions)
   if (typeof Deno !== 'undefined') {
     return Deno.env.get(name) || Deno.env.get(name.replace('VITE_', '')) || '';
   }
