@@ -366,30 +366,6 @@ export class Company {
     return false;
   }
 
-  /**
-   * Sell products from a retail facility
-   * @param retailFacility The retail facility to sell from
-   * @param resource The resource to sell
-   * @param quantity The quantity to sell
-   * @param pricePerUnit The price per unit (will be based on demand in future)
-   * @returns Revenue generated, or 0 if sale failed
-   */
-  sellFromRetail(retailFacility: RetailFacility, resource: string, quantity: number, pricePerUnit: number): number {
-    // Verify facility belongs to this company
-    if (retailFacility.ownerId !== this.id) {
-      return 0;
-    }
-
-    // Attempt to sell
-    const revenue = retailFacility.sellProducts(resource, quantity, pricePerUnit);
-
-    // Add revenue to company balance
-    if (revenue > 0) {
-      this.balance += revenue;
-    }
-
-    return revenue;
-  }
 
   /**
    * Process wage payments for all facilities

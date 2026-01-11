@@ -54,19 +54,19 @@ export class RetailFacility extends FacilityBase {
 
     const available = this.getResource(resourceId);
     const actualSold = Math.min(quantity, available);
-    
+
     if (actualSold > 0) {
       this.removeResource(resourceId, actualSold);
       const revenue = actualSold * price;
       this.revenue += revenue;
-      
+
       // Track sales for this tick
       const currentSales = this.salesThisTick.get(resourceId) || 0;
       this.salesThisTick.set(resourceId, currentSales + actualSold);
-      
+
       return revenue;
     }
-    
+
     return 0;
   }
 
@@ -80,21 +80,6 @@ export class RetailFacility extends FacilityBase {
     this.updateInventoryCapacityForTick();
   }
 
-  /**
-   * @deprecated Use setPrice() and automatic demand-based sales instead
-   * Manual sell - kept for backwards compatibility with tests
-   */
-  sellProducts(resourceId: string, quantity: number, pricePerUnit: number): number {
-    const currentInventory = this.inventory!.get(resourceId) || 0;
-    if (currentInventory < quantity) return 0;
-
-    const revenue = quantity * pricePerUnit;
-    this.inventory!.set(resourceId, currentInventory - quantity);
-    if (this.inventory!.get(resourceId) === 0) {
-      this.inventory!.delete(resourceId);
-    }
-    return revenue;
-  }
 
   /**
    * Get a status string describing the facility's current state
@@ -103,38 +88,10 @@ export class RetailFacility extends FacilityBase {
     const maxCapacity = this.getMaxInventoryCapacity();
     const currentInventory = this.getTotalInventory();
     const percentage = (maxCapacity > 0 ? (currentInventory / maxCapacity) * 100 : 0).toFixed(1);
-    
+
     return `${this.name} - Inventory: ${currentInventory}/${maxCapacity} (${percentage}%), Effectivity: ${(this.effectivity * 100).toFixed(1)}%, Revenue: $${this.revenue.toFixed(2)}`;
   }
 
-  /**
-   * Get a list of all resources currently in inventory
-   */
-  getInventoryList(): { resource: string, quantity: number, value: number }[] {
-    const list: { resource: string, quantity: number, value: number }[] = [];
-    
-    if (!this.inventory) return list;
-    
-    this.inventory.forEach((quantity, resourceId) => {
-      const price = this.getPrice(resourceId);
-      
-      list.push({
-        resource: resourceId,
-        quantity: quantity,
-        value: quantity * price
-      });
-    });
-    
-    return list;
-  }
-
-  /**
-   * Get sales report for the last tick
-   * @returns Map of resource ID to units sold
-   */
-  getSalesThisTick(): Map<string, number> {
-    return new Map(this.salesThisTick);
-  }
 
   /**
    * Get total units sold for a specific resource this tick

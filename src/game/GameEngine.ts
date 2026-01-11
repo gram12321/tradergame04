@@ -76,13 +76,13 @@ export class GameEngine {
 
       // Load all companies
       const companyRows = await CompanyRepository.loadAll();
-      
+
       this.companies.clear();
       for (const companyRow of companyRows) {
         // Load facilities for this company
         const { FacilityRepository } = await import('../database/FacilityRepository.js');
         companyRow.facilities = await FacilityRepository.loadByCompanyId(companyRow.id);
-        
+
         // Add to game engine
         this.companies.set(companyRow.id, companyRow);
       }
@@ -339,41 +339,9 @@ export class GameEngine {
   }
 
   /**
-   * Get a company by ID
-   */
-  getCompany(id: string): Company | undefined {
-    return this.companies.get(id);
-  }
-
-  /**
-   * Get current game state summary
-   */
-  getGameState(): string {
-    const lines: string[] = [];
-    lines.push(`\n=== Tick ${this.tickCount} ===`);
-
-    this.companies.forEach(company => {
-      lines.push(company.getSummary());
-      company.facilities.forEach((facility, index) => {
-        lines.push(`  Facility ${index + 1}: ${facility.getStatus()}`);
-      });
-    });
-
-    return lines.join('\n');
-  }
-
-  /**
    * Get the contract system
    */
   getContractSystem(): ContractSystem {
-    return this.contractSystem;
-  }
-
-  /**
-   * Get market (deprecated - use getContractSystem)
-   * @deprecated Use getContractSystem() instead
-   */
-  getMarket(): ContractSystem {
     return this.contractSystem;
   }
 }

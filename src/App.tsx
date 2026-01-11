@@ -234,7 +234,7 @@ function App() {
 }
 
 function MarketDisplay({ game }: { game: GameEngine }) {
-  const market = game.getMarket()
+  const market = game.getContractSystem()
   const sellOffers = market.getAllSellOffers()
   const contracts = market.getAllContracts()
   const transfers = market.getAllInternalTransfers()
@@ -347,7 +347,10 @@ function CompanyDisplay({ company, game }: { company: Company; game: GameEngine 
   return (
     <div className="company-section">
       <div className="company-header">
-        <span>{company.name}</span>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '1.4em', fontWeight: 'bold' }}>{company.name}</span>
+          <span style={{ fontSize: '0.8em', opacity: 0.7 }}>Wages: ${company.getTotalWagesPerTick().toFixed(2)}/tick</span>
+        </div>
         <span className="balance">Balance: ${company.balance.toFixed(2)}</span>
       </div>
 

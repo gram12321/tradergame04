@@ -194,10 +194,10 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
         return
       }
 
-      const transfer = company.createInternalTransfer(game.getMarket(), from, to, internalResource, internalAmount)
+      const transfer = company.createInternalTransfer(game.getContractSystem(), from, to, internalResource, internalAmount)
       if (transfer) {
         await company.save()
-        await game.getMarket().save()
+        await game.getContractSystem().save()
         const resource = ResourceRegistry.get(internalResource)
         onMessage(`Created internal transfer: ${internalAmount} ${resource?.icon} ${internalResource}/tick from ${from.name} to ${to.name}`, 'success')
         onAction()
@@ -301,10 +301,10 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
         return
       }
 
-      const offer = company.createSellOffer(game.getMarket(), facility, sellResource, sellAmount, sellPrice)
+      const offer = company.createSellOffer(game.getContractSystem(), facility, sellResource, sellAmount, sellPrice)
       if (offer) {
         await company.save()
-        await game.getMarket().save()
+        await game.getContractSystem().save()
         const resource = ResourceRegistry.get(sellResource)
         onMessage(`Created sell offer: ${sellAmount} ${resource?.icon} ${sellResource}/tick @ $${sellPrice.toFixed(2)}/unit`, 'success')
         onAction()
@@ -324,7 +324,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
         return
       }
 
-      const market = game.getMarket()
+      const market = game.getContractSystem()
       const offer = market.getSellOffer(contractOffer)
 
       if (!offer) {
@@ -424,20 +424,20 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
   const handleCancelSellOffer = async (id: string) => {
     if (!confirm('Cancel this sell offer?')) return
-    const success = company.cancelSellOffer(game.getMarket(), id)
+    const success = company.cancelSellOffer(game.getContractSystem(), id)
     if (success) {
       await company.save()
-      await game.getMarket().save()
+      await game.getContractSystem().save()
       onMessage('Sell offer canceled', 'info')
       onAction()
     }
   }
 
   const handleUpdateSellOffer = async (id: string) => {
-    const success = company.updateSellOffer(game.getMarket(), id, editPrice, editAmount)
+    const success = company.updateSellOffer(game.getContractSystem(), id, editPrice, editAmount)
     if (success) {
       await company.save()
-      await game.getMarket().save()
+      await game.getContractSystem().save()
       onMessage('Sell offer updated', 'success')
       setEditingId(null)
       onAction()
@@ -446,10 +446,25 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
   const handleCancelContract = async (id: string) => {
     if (!confirm('Cancel this contract?')) return
-    const success = company.cancelContract(game.getMarket(), id)
+
+    // Get contract details before cancelling to find the other party
+    const contract = game.getContractSystem().getContract(id)
+    if (!contract) return
+
+    const success = company.cancelContract(game.getContractSystem(), id)
     if (success) {
+      // Find and clean up the other company involved
+      const otherCompanyId = contract.sellerId === company.id ? contract.buyerId : contract.sellerId
+      const otherFacilityId = contract.sellerId === company.id ? contract.buyerFacilityId : contract.sellerFacilityId
+
+      const otherCompany = game.getCompanies().find((c: any) => c.id === otherCompanyId)
+      if (otherCompany) {
+        otherCompany.removeContractFromFacility(id, otherFacilityId)
+        await otherCompany.save()
+      }
+
       await company.save()
-      await game.getMarket().save()
+      await game.getContractSystem().save()
       onMessage('Contract canceled', 'info')
       onAction()
     }
@@ -458,14 +473,14 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
   const handleUpdateContract = async (id: string, isSeller: boolean) => {
     let success = false
     if (isSeller) {
-      success = company.updateContractPrice(game.getMarket(), id, editPrice)
+      success = company.updateContractPrice(game.getContractSystem(), id, editPrice)
     } else {
-      success = company.updateContractAmount(game.getMarket(), id, editAmount)
+      success = company.updateContractAmount(game.getContractSystem(), id, editAmount)
     }
 
     if (success) {
       await company.save()
-      await game.getMarket().save()
+      await game.getContractSystem().save()
       onMessage('Contract updated', 'success')
       setEditingId(null)
       onAction()
@@ -474,20 +489,20 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
   const handleCancelInternalTransfer = async (id: string) => {
     if (!confirm('Cancel this internal transfer?')) return
-    const success = company.cancelInternalTransfer(game.getMarket(), id)
+    const success = company.cancelInternalTransfer(game.getContractSystem(), id)
     if (success) {
       await company.save()
-      await game.getMarket().save()
+      await game.getContractSystem().save()
       onMessage('Internal transfer canceled', 'info')
       onAction()
     }
   }
 
   const handleUpdateInternalTransfer = async (id: string) => {
-    const success = company.updateInternalTransferAmount(game.getMarket(), id, editAmount)
+    const success = company.updateInternalTransferAmount(game.getContractSystem(), id, editAmount)
     if (success) {
       await company.save()
-      await game.getMarket().save()
+      await game.getContractSystem().save()
       onMessage('Internal transfer updated', 'success')
       setEditingId(null)
       onAction()
@@ -496,7 +511,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
 
   // Get available sell offers from market
-  const market = game?.getMarket()
+  const market = game?.getContractSystem()
   const availableOffers = market?.getAvailableSellOffers() || []
 
   return (
@@ -696,7 +711,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
           <h4>Active Internal Transfers</h4>
           {(() => {
-            const transfers = game.getMarket().getAllInternalTransfers().filter((t: any) => t.ownerId === company.id)
+            const transfers = game.getContractSystem().getAllInternalTransfers().filter((t: any) => t.ownerId === company.id)
             if (transfers.length === 0) return <p style={{ color: '#666' }}>No active internal transfers</p>
             return (
               <div style={{ fontSize: '12px' }}>
@@ -903,7 +918,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
           <h4>My Sell Offers</h4>
           {(() => {
-            const offers = game.getMarket().getAllSellOffers().filter((o: any) => o.sellerId === company.id)
+            const offers = game.getContractSystem().getAllSellOffers().filter((o: any) => o.sellerId === company.id)
             if (offers.length === 0) return <p style={{ color: '#666' }}>No active sell offers</p>
             return (
               <div style={{ fontSize: '12px' }}>
@@ -945,7 +960,7 @@ export function CompanyActions({ company, game, onAction, onMessage }: CompanyAc
 
           <h4>My Contracts (Buying & Selling)</h4>
           {(() => {
-            const contracts = game.getMarket().getAllContracts().filter((c: any) => c.sellerId === company.id || c.buyerId === company.id)
+            const contracts = game.getContractSystem().getAllContracts().filter((c: any) => c.sellerId === company.id || c.buyerId === company.id)
             if (contracts.length === 0) return <p style={{ color: '#666' }}>No active contracts</p>
             return (
               <div style={{ fontSize: '12px' }}>

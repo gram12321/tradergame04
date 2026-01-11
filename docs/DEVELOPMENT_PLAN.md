@@ -3,93 +3,38 @@
 ## Core Philosophy
 Keep game logic pure and infrastructure-agnostic. Build mechanics first, add infrastructure later.
 
-## Phase 1: Pure Game Logic (NOW)
+## Phase 1: Pure Game Logic (COMPLETE)
 **Goal:** Develop core game mechanics with zero overhead
 
-**Setup:**
-- Plain TypeScript classes
-- No database, no UI, no state management
-- Test via console output
-- Run locally with `npm run dev`
+- Plain TypeScript classes for Company, Facility, Resource, Recipe, City.
+- Logic environment tested with `engine.test.ts`.
 
-**Files:**
-```
-src/
-  game/
-    Player.ts        # Player state & actions
-    Market.ts        # Trading/market mechanics
-    GameEngine.ts    # Core game loop & tick logic
-  test.ts            # Console-based testing
-```
-
-**Key Principle:** All game logic is pure TypeScript. No external dependencies.
-
----
-
-## Phase 2: Add Persistence (LATER)
+## Phase 2: Add Persistence (COMPLETE)
 **Goal:** Save/load game state without rewriting logic
 
-**Changes:**
-- Add data layer (load/save methods to classes)
-- Connect to Supabase PostgreSQL
-- Game logic remains unchanged
-- Still runs locally for testing
-
-
-## Phase 3: Global Tick System (LATER)
-**Goal:** Game runs continuously for all players
-
-**Architecture:**
-1. Deploy game logic as Supabase Edge Function
-2. Set up pg_cron to trigger Edge Function every minute
-
-**Edge Function (supabase/functions/process-tick/index.ts):**
-```typescript
-import { GameEngine } from '../../../src/game/GameEngine.ts';
-
-Deno.serve(async (req) => {
-  const engine = new GameEngine();
-  await engine.loadAllPlayers();
-  engine.processTick();
-  await engine.saveAllPlayers();
-  
-  return new Response(JSON.stringify({ success: true }));
-});
-```
-
-**pg_cron Setup:**
-```sql
-SELECT cron.schedule(
-  'global-game-tick',
-  '* * * * *',  -- Every minute (adjust as needed)
-  $$ 
-    SELECT net.http_post(
-      'https://YOUR_PROJECT.functions.supabase.co/process-tick',
-      '{}'::jsonb,
-      headers := '{"Authorization": "Bearer YOUR_SERVICE_KEY"}'::jsonb
-    )
-  $$
-);
-```
+- Added `CompanyRepository`, `FacilityRepository`, `GameRepository`, etc.
+- Multi-tenancy support (multiple companies in one database).
+- Connected to Supabase PostgreSQL.
+- Autosave on each tick.
 
 ---
 
-## Phase 4: Add React Frontend (FAR FUTURE)
+## Phase 3: Global Tick System (IN PROGRESS)
+**Goal:** Game runs continuously for all players
+
+**Status:**
+- Game logic is ready for server-side execution.
+- Edge functions are planned for a centralized tick system to replace client-side ticking.
+
+---
+
+## Phase 4: React Frontend (IN PROGRESS)
 **Goal:** Visual interface for players
 
-**Architecture:**
-- React/TypeScript/Tailwind/shadcn/ui
-- Frontend displays state only
-- Player actions call Supabase Edge Functions
-- Game logic stays on server
-
-**Example Flow:**
-1. Player clicks "Buy Stock"
-2. React calls Edge Function `buy-stock`
-3. Edge Function uses existing `Player.buyStock()` method
-4. Returns updated state to frontend
-
-**Key Principle:** Frontend never runs game logic, only displays and sends commands.
+**Status:**
+- `src/App.tsx` provides a full React dashboard.
+- Includes Company management, Market display, and Admin tools.
+- Real-time updates and manual/auto-tick controls.
 
 ---
 
@@ -105,13 +50,11 @@ SELECT cron.schedule(
 
 ## Technical Notes
 
-
 ### Game Tick Frequency
-- Start with 1 minute intervals
-- Adjust based on game design (could be 30s, 5 min, etc.)
-- pg_cron supports any cron schedule
+- Current: User-driven (manual or periodic timer).
+- Future: Server-side heartbeat (1-hour intervals).
 
 ---
 
 ## Current Status
-**Phase 1** - Setting up pure TypeScript game logic environment
+**Phase 2 & 4** - Persistence implemented and UI is in active development.

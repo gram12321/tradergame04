@@ -19,8 +19,8 @@ const bob = game.addCompany('bob', 'Bob Industries');
 
 console.log('🎮 Production Game - Comprehensive Test Suite\n');
 console.log(FacilityRegistry.displayFacilities());
-console.log('\nInitial state:');
-console.log(game.getGameState());
+// Initial state:
+console.log(`Initial state: Tick ${game.getTickCount()}, ${game.getCompanies().length} companies`);
 
 // Test data storage
 let testsPassed = 0;
@@ -583,40 +583,37 @@ if (retailFacility && retailOffice && retailFarm) {
     `Retail inventory increased: 0 → ${retailGrainAfter.toFixed(0)}`
   );
 
-  // Test selling products for revenue
+  // Test selling products for revenue via automatic demand
   const companyBalanceBefore = retailCompany.balance;
   const retailGrainBefore = retailFacility.getResource('grain');
   const pricePerUnit = 3.50;
 
-  const revenue = retailCompany.sellFromRetail(retailFacility, 'grain', 30, pricePerUnit);
+  retailFacility.setPrice('grain', pricePerUnit);
+  game.processTick();
+
+  let retailGrainAfter2 = retailFacility.getResource('grain');
+  const actualSold = retailGrainBefore - retailGrainAfter2;
+  const revenue = retailFacility.revenue; // Revenue generated in the tick
 
   assert(
-    revenue > 0,
-    `Retail generated revenue: $${revenue.toFixed(2)} (30 units × $${pricePerUnit})`
-  );
-  assert(
-    Math.abs(revenue - (30 * pricePerUnit)) < 0.01,
-    `Revenue calculation correct: 30 × $${pricePerUnit} = $${revenue.toFixed(2)}`
+    actualSold > 0,
+    `Retail generated sales via automatic demand: ${actualSold.toFixed(2)} units`
   );
 
   const companyBalanceAfter = retailCompany.balance;
-  const retailGrainAfter2 = retailFacility.getResource('grain');
+  retailGrainAfter2 = retailFacility.getResource('grain');
 
+  const wages = retailCompany.getTotalWagesPerTick();
   assert(
-    companyBalanceAfter === companyBalanceBefore + revenue,
-    `Company balance increased by revenue: $${companyBalanceBefore.toFixed(2)} → $${companyBalanceAfter.toFixed(2)}`
+    Math.abs(companyBalanceAfter - (companyBalanceBefore + revenue - wages)) < 0.01,
+    `Company balance correctly updated (Revenue: $${revenue.toFixed(2)}, Wages: $${wages.toFixed(2)})`
   );
   assert(
-    retailGrainAfter2 === retailGrainBefore - 30,
+    retailGrainAfter2 === retailGrainBefore - actualSold,
     `Retail inventory decreased: ${retailGrainBefore.toFixed(0)} → ${retailGrainAfter2.toFixed(0)}`
   );
 
-  // Test selling more than available
-  const failureRevenue = retailCompany.sellFromRetail(retailFacility, 'grain', 100, pricePerUnit);
-  assert(
-    failureRevenue === 0,
-    'Sale correctly prevented when insufficient inventory'
-  );
+  // No manual sell failure test needed as demand handles it automatically
 
   // Test getResource method
   const currentStock = retailFacility.getResource('grain');
@@ -831,7 +828,7 @@ if (lowStockRetail && highStockRetail && lowStockOffice) {
 
 console.log('\n=== MARKET SELL OFFER TEST ===\n');
 
-const market = game.getMarket();
+const market = game.getContractSystem();
 const sellerCompany = game.addCompany('seller', 'Seller Corp');
 const sellerOffice = sellerCompany.createFacility('office', copenhagen) as Office | null;
 const sellerFarm = sellerCompany.createFacility('farm', copenhagen) as ProductionFacility | null;
