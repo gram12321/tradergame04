@@ -1,5 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+
+// ============================================
+// GITHUB IMPORTS - NO CODE DUPLICATION! 🎉
+// ============================================
+// Import TypeScript directly from your GitHub repository
+// Deno will automatically follow all relative imports in the files
+const GITHUB_MAIN = "https://raw.githubusercontent.com/gram12321/tradergame04/main/src";
+
+// Import game engine from GitHub - Deno will resolve all nested imports automatically!
+const GameEngineModule = await import(`${GITHUB_MAIN}/game/GameEngine.ts`);
+const GameEngine = GameEngineModule.GameEngine;
 
 // CORS headers
 const corsHeaders = {
@@ -8,6 +18,7 @@ const corsHeaders = {
 };
 
 console.log("🎮 Game Tick Edge Function initialized");
+console.log("📦 Using GitHub imports from: gram12321/tradergame04@main");
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -18,141 +29,53 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    // Get environment variables
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    // ======================
+    // 1. INITIALIZE ENGINE
+    // ======================
+    console.log('🔧 Initializing GameEngine...');
+    const engine = new GameEngine();
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing required environment variables. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your Supabase dashboard.');
-    }
-
-    console.log('✓ Environment variables loaded');
+    // ======================
+    // 2. LOAD GAME STATE
+    // ======================
+    console.log('📥 Loading game state from database...');
+    const loadResult = await engine.loadAll();
     
-    // Create Supabase admin client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
-    // ======================
-    // 1. GET CURRENT TICK
-    // ======================
-    const { data: gameState, error: fetchError } = await supabase
-      .from('game_state')
-      .select('tick_count')
-      .eq('id', 'global')
-      .maybeSingle();
-
-    if (fetchError) {
-      throw new Error(`Failed to fetch game state: ${fetchError.message}`);
+    if (!loadResult.success) {
+      throw new Error(`Failed to load game state: ${loadResult.error}`);
     }
 
-    const currentTick = gameState?.tick_count || 0;
-    const newTick = currentTick + 1;
-    console.log(`📊 Current tick: ${currentTick} → ${newTick}`);
+    const currentTick = engine.getTickCount();
+    console.log(`📊 Current tick: ${currentTick} → ${currentTick + 1}`);
 
     // ======================
-    // 2. FETCH GAME DATA
+    // 3. PROCESS GAME TICK
     // ======================
-    const [companiesResult, facilitiesResult, routesResult] = await Promise.all([
-      supabase.from('companies').select('*'),
-      supabase.from('facilities').select('*'),
-      supabase.from('trade_routes').select('*')
-    ]);
-
-    if (companiesResult.error) throw new Error(`Companies: ${companiesResult.error.message}`);
-    if (facilitiesResult.error) throw new Error(`Facilities: ${facilitiesResult.error.message}`);
-    if (routesResult.error) throw new Error(`Routes: ${routesResult.error.message}`);
-
-    const companies = companiesResult.data || [];
-    const facilities = facilitiesResult.data || [];
-    const routes = routesResult.data || [];
-
-    console.log(`✓ Loaded: ${companies.length} companies, ${facilities.length} facilities, ${routes.length} routes`);
-
-    // ======================
-    // 3. PROCESS GAME LOGIC
-    // ======================
-    const updates = {
-      facilities: [] as any[],
-      companies: [] as any[],
-      routes: [] as any[]
-    };
-
-    // Process each facility based on type
-    for (const facility of facilities) {
-      const facilityData = facility.data || {};
-      
-      if (facility.type === 'production') {
-        // Process production facilities
-        if (facilityData.recipe) {
-          // Check if facility has required inputs
-          const canProduce = true; // TODO: Check input inventory
-          
-          if (canProduce) {
-            // Deduct inputs and add outputs
-            // For now, just mark it as processed
-            facilityData.lastProduction = new Date().toISOString();
-            updates.facilities.push({
-              ...facility,
-              data: facilityData
-            });
-          }
-        }
-      } else if (facility.type === 'retail') {
-        // Process retail facilities
-        // TODO: Process sales
-        facilityData.lastSale = new Date().toISOString();
-        updates.facilities.push({
-          ...facility,
-          data: facilityData
-        });
-      }
-      // Storage facilities don't need processing
-    }
-
-    // Process trade routes
-    for (const route of routes) {
-      if (route.active) {
-        // TODO: Execute trade route transfers
-        console.log(`Processing route: ${route.id}`);
-      }
-    }
-
-    console.log(`✓ Processed ${updates.facilities.length} facility updates`);
-
-    // ======================
-    // 4. SAVE UPDATES
-    // ======================
+    console.log('⚙️ Processing game tick...');
+    const tickResult = await engine.tick();
     
-    // Update facilities in batch
-    if (updates.facilities.length > 0) {
-      const { error: updateError } = await supabase
-        .from('facilities')
-        .upsert(updates.facilities);
-      
-      if (updateError) {
-        console.error('Failed to update facilities:', updateError);
-      }
+    if (!tickResult.success) {
+      throw new Error(`Tick processing failed: ${tickResult.error}`);
     }
 
-    // Update tick count
-    const { error: tickError } = await supabase
-      .from('game_state')
-      .upsert({
-        id: 'global',
-        tick_count: newTick,
-        updated_at: new Date().toISOString()
-      });
-
-    if (tickError) {
-      throw new Error(`Failed to update tick: ${tickError.message}`);
+    // ======================
+    // 4. SAVE GAME STATE
+    // ======================
+    console.log('💾 Saving game state to database...');
+    const saveResult = await engine.saveAll();
+    
+    if (!saveResult.success) {
+      throw new Error(`Failed to save game state: ${saveResult.error}`);
     }
 
+    const newTick = engine.getTickCount();
     const duration = Date.now() - startTime;
+    
     console.log(`✅ Tick ${newTick} completed in ${duration}ms`);
+
+    // Get stats
+    const companies = engine.getCompanies();
+    const totalFacilities = companies.reduce((sum, c) => sum + c.getFacilityCount(), 0);
 
     return new Response(
       JSON.stringify({
@@ -164,9 +87,7 @@ serve(async (req) => {
         },
         stats: {
           companies: companies.length,
-          facilities: facilities.length,
-          routes: routes.length,
-          updated: updates.facilities.length,
+          facilities: totalFacilities,
           duration: `${duration}ms`
         }
       }),

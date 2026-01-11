@@ -20,14 +20,22 @@ Keep game logic pure and infrastructure-agnostic. Build mechanics first, add inf
 ---
 
 ## Phase 3: Global Tick System (COMPLETE)
-**Goal:** Game runs continuously for all players
+**Goal:** Game runs continuously for all players, 24/7 server-side execution
 
 **Status:**
-- ✅ Edge function created with no code duplication
-- ✅ Direct SQL implementation for game logic
-- ✅ Clean deployment process via Supabase dashboard
-- ✅ Environment variables documented
-- See `docs/EDGE_FUNCTION_DEPLOYMENT.md` for deployment guide
+- ✅ Edge function imports code directly from GitHub (zero duplication!)
+- ✅ Full game logic runs server-side using TypeScript from `src/`
+- ✅ Automatic hourly tick via pg_cron
+- ✅ No build step or bundling required
+- ✅ Development continues in `src/` - just push to GitHub
+- See `docs/GITHUB_IMPORTS_SOLUTION.md` for complete documentation
+- See `GITHUB_IMPORTS_QUICKSTART.md` for deployment steps
+
+**How it works:**
+- Edge function imports TypeScript directly from your public GitHub repo
+- Deno resolves all dependencies automatically
+- Push code to GitHub → edge function uses latest code (after cache refresh)
+- Single source of truth: all game logic stays in `src/`
 
 ---
 
