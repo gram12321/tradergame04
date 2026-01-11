@@ -4,12 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // GITHUB IMPORTS - NO CODE DUPLICATION! 🎉
 // ============================================
 // Import TypeScript directly from your GitHub repository
-// Deno will automatically follow all relative imports in the files
 const GITHUB_MAIN = "https://raw.githubusercontent.com/gram12321/tradergame04/main/src";
-
-// Import game engine from GitHub - Deno will resolve all nested imports automatically!
-const GameEngineModule = await import(`${GITHUB_MAIN}/game/GameEngine.ts`);
-const GameEngine = GameEngineModule.GameEngine;
 
 // CORS headers
 const corsHeaders = {
@@ -30,13 +25,21 @@ serve(async (req) => {
 
   try {
     // ======================
-    // 1. INITIALIZE ENGINE
+    // 1. IMPORT GAME ENGINE
+    // ======================
+    console.log('📦 Importing GameEngine from GitHub...');
+    const GameEngineModule = await import(`${GITHUB_MAIN}/game/GameEngine.ts`);
+    const GameEngine = GameEngineModule.GameEngine;
+    console.log('✓ GameEngine imported successfully');
+
+    // ======================
+    // 2. INITIALIZE ENGINE
     // ======================
     console.log('🔧 Initializing GameEngine...');
     const engine = new GameEngine();
 
     // ======================
-    // 2. LOAD GAME STATE
+    // 3. LOAD GAME STATE
     // ======================
     console.log('📥 Loading game state from database...');
     const loadResult = await engine.loadAll();
@@ -49,7 +52,7 @@ serve(async (req) => {
     console.log(`📊 Current tick: ${currentTick} → ${currentTick + 1}`);
 
     // ======================
-    // 3. PROCESS GAME TICK
+    // 4. PROCESS GAME TICK
     // ======================
     console.log('⚙️ Processing game tick...');
     const tickResult = await engine.tick();
@@ -59,7 +62,7 @@ serve(async (req) => {
     }
 
     // ======================
-    // 4. SAVE GAME STATE
+    // 5. SAVE GAME STATE
     // ======================
     console.log('💾 Saving game state to database...');
     const saveResult = await engine.saveAll();
@@ -99,6 +102,7 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('❌ Tick processing failed:', error);
+    console.error('Stack:', error.stack);
     
     return new Response(
       JSON.stringify({ 
