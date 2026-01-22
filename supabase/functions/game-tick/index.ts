@@ -3,11 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // ============================================
 // GITHUB IMPORTS - NO CODE DUPLICATION! 🎉
 // ============================================
-// Import TypeScript directly from your GitHub repository
 const GITHUB_MAIN = "https://raw.githubusercontent.com/gram12321/tradergame04/main/src";
-
-// Import game engine from GitHub - Deno will resolve all imports automatically!
-const { GameEngine } = await import(`${GITHUB_MAIN}/game/GameEngine.ts`);
 
 // CORS headers
 const corsHeaders = {
@@ -16,9 +12,10 @@ const corsHeaders = {
 };
 
 console.log("🎮 Game Tick Edge Function initialized");
-console.log("📦 Using GitHub imports from: gram12321/tradergame04@main");
+console.log("📦 Will import from GitHub on first request");
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -26,6 +23,11 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
+    // Import game engine from GitHub on each request
+    console.log('📦 Importing GameEngine from GitHub...');
+    const { GameEngine } = await import(`${GITHUB_MAIN}/game/GameEngine.ts`);
+    console.log('✓ GameEngine imported successfully');
+
     console.log('🔧 Initializing GameEngine...');
     const engine = new GameEngine();
 
@@ -83,13 +85,15 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('❌ Tick processing failed:', error);
-    console.error('Error details:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error cause:', error.cause);
     
     return new Response(
       JSON.stringify({ 
         success: false, 
         error: error.message,
         details: error.stack,
+        cause: error.cause?.toString(),
         timestamp: new Date().toISOString()
       }),
       {
